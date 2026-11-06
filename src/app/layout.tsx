@@ -7,9 +7,9 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Mi Estudio de Yoga",
+  title: "Marea",
   description: "Reservas de clases, paquetes y administración del estudio.",
-  appleWebApp: { capable: true, title: "Yoga", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Marea", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

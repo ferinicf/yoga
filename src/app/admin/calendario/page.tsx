@@ -9,7 +9,7 @@ import { occupied, sessionsOn } from "@/lib/rules";
 import type { ClassTemplate } from "@/lib/types";
 import { capitalize, cn, fmt, timeOf, WEEKDAYS, WEEKDAYS_SHORT, weekDays } from "@/lib/utils";
 import { SessionCard } from "@/components/domain";
-import { toast } from "@/components/toast";
+import { toastDone } from "@/components/toast";
 import { Badge, Button, Card, Empty, PageHeader, Segmented } from "@/components/ui";
 import { ClassFormModal } from "@/components/admin/class-form";
 
@@ -196,11 +196,9 @@ export default function CalendarPage() {
                           onClick={() => {
                             if (t.active) {
                               if (!confirm("¿Desactivar esta clase recurrente? Se quitan las clases futuras sin reservaciones.")) return;
-                              deleteTemplate(t.id);
-                              toast("Clase recurrente desactivada.");
+                              toastDone(deleteTemplate(t.id), "Clase recurrente desactivada.");
                             } else {
-                              upsertTemplate({ ...t, active: true });
-                              toast("Clase recurrente activada.");
+                              toastDone(upsertTemplate({ ...t, active: true }), "Clase recurrente activada.");
                             }
                           }}
                         >

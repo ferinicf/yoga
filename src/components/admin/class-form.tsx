@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useDB, useStore } from "@/lib/store";
 import type { ClassTemplate } from "@/lib/types";
 import { fmt, roomSpots, uid, WEEKDAYS } from "@/lib/utils";
-import { toast } from "@/components/toast";
+import { toast, toastDone } from "@/components/toast";
 import { Button, Field, Input, Modal, Segmented, Select } from "@/components/ui";
 
 /** Crear clase recurrente (plantilla semanal) o una clase única; también edita plantillas. */
@@ -41,11 +41,12 @@ export function ClassFormModal({
   const room = db.rooms.find((r) => r.id === roomId);
   const maxSpots = room ? roomSpots(room).length : 999;
 
-  const save = () => {
+  const save = async () => {
     if (!disciplineId || !teacherId || !roomId) return toast("Completa disciplina, profesor y salón.", false);
     const cap = Math.max(1, Math.min(capacity, db.settings.spotSelection ? maxSpots : 999));
+    let r: { ok: boolean };
     if (template || mode === "recurring") {
-      upsertTemplate({
+      r = await toastDone(upsertTemplate({
         id: template?.id ?? uid("t"),
         disciplineId,
         teacherId,
@@ -55,13 +56,12 @@ export function ClassFormModal({
         durationMin: duration,
         capacity: cap,
         active: true,
-      });
-      toast(template ? "Horario recurrente actualizado." : `Clase agregada todos los ${WEEKDAYS[weekday].toLowerCase()} a las ${time}.`);
+      }), template ? "Horario recurrente actualizado." : `Clase agregada todos los ${WEEKDAYS[weekday].toLowerCase()} a las ${time}.`);
     } else {
       const [h, m] = time.split(":").map(Number);
       const [y, mo, d] = date.split("-").map(Number);
       const start = new Date(y, mo - 1, d, h, m);
-      upsertSession({
+      r = await toastDone(upsertSession({
         id: uid("ses"),
         disciplineId,
         teacherId,
@@ -70,10 +70,9 @@ export function ClassFormModal({
         durationMin: duration,
         capacity: cap,
         status: "scheduled",
-      });
-      toast("Clase única creada.");
+      }), "Clase única creada.");
     }
-    onClose();
+    if (r.ok) onClose();
   };
 
   return (

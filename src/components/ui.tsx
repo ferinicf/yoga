@@ -147,18 +147,18 @@ export function Modal({
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
         className={cn(
-          "animate-sheet relative flex max-h-[92dvh] w-full flex-col rounded-t-3xl bg-surface shadow-xl md:rounded-3xl",
+          "animate-sheet relative flex max-h-[92dvh] w-full min-w-0 flex-col overflow-hidden rounded-t-3xl bg-surface shadow-xl md:rounded-3xl",
           wide ? "md:max-w-3xl" : "md:max-w-lg",
         )}
       >
-        <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-line px-5 py-4">
           <h2 className="text-lg font-semibold">{title}</h2>
           <button onClick={onClose} className="rounded-full p-2 hover:bg-black/5" aria-label="Cerrar">
             <X size={20} />
           </button>
         </div>
-        <div className="overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <div className="pb-safe border-t border-line px-5 py-3">{footer}</div>}
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-4">{children}</div>
+        {footer && <div className="pb-safe shrink-0 border-t border-line bg-surface px-5 py-3">{footer}</div>}
       </div>
     </div>
   );

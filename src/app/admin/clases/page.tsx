@@ -5,7 +5,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useDB, useStore } from "@/lib/store";
 import type { Discipline, Room } from "@/lib/types";
 import { cn, roomSpots, spotLabel, uid } from "@/lib/utils";
-import { toast, toastResult } from "@/components/toast";
+import { toast, toastResult, toastDone } from "@/components/toast";
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Textarea, Toggle } from "@/components/ui";
 
 const DISC_COLORS = ["#C98B6B", "#7C9A92", "#8E7CC3", "#D4A373", "#B5838D", "#6B9AC4", "#6D8B74", "#E09F7D"];
@@ -113,11 +113,13 @@ function DisciplineModal({ discipline, onClose }: { discipline?: Discipline; onC
       active: true,
     },
   );
-  const save = () => {
+  const save = async () => {
     if (!d.name.trim()) return toast("El nombre es obligatorio.", false);
-    upsert({ ...d, name: d.name.trim(), description: d.description.trim() });
-    toast(discipline ? "Disciplina actualizada." : "Disciplina creada.");
-    onClose();
+    const r = await toastDone(
+      upsert({ ...d, name: d.name.trim(), description: d.description.trim() }),
+      discipline ? "Disciplina actualizada." : "Disciplina creada.",
+    );
+    if (r.ok) onClose();
   };
   return (
     <Modal
@@ -182,12 +184,14 @@ function RoomModal({ room, onClose }: { room?: Room; onClose: () => void }) {
   };
   const toggleSpot = (s: string) =>
     setR({ ...r, blockedSpots: r.blockedSpots.includes(s) ? r.blockedSpots.filter((x) => x !== s) : [...r.blockedSpots, s] });
-  const save = () => {
+  const save = async () => {
     if (!r.name.trim()) return toast("El nombre es obligatorio.", false);
     if (roomSpots(r).length === 0) return toast("El salón necesita al menos un lugar.", false);
-    upsert({ ...r, name: r.name.trim() });
-    toast(room ? "Salón actualizado. El cupo de clases existentes no cambia." : "Salón creado.");
-    onClose();
+    const res = await toastDone(
+      upsert({ ...r, name: r.name.trim() }),
+      room ? "Salón actualizado. El cupo de clases existentes no cambia." : "Salón creado.",
+    );
+    if (res.ok) onClose();
   };
   return (
     <Modal
@@ -201,10 +205,9 @@ function RoomModal({ room, onClose }: { room?: Room; onClose: () => void }) {
               variant="outline"
               className="text-red-600"
               aria-label="Eliminar salón"
-              onClick={() => {
+              onClick={async () => {
                 if (!confirm(`¿Eliminar ${room.name}?`)) return;
-                const res = del(room.id);
-                toastResult(res);
+                const res = await toastResult(del(room.id));
                 if (res.ok) onClose();
               }}
             >

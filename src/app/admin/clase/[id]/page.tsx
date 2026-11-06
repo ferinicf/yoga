@@ -9,7 +9,7 @@ import { occupied } from "@/lib/rules";
 import type { Session } from "@/lib/types";
 import { endTime, fmt, longDay, roomSpots, timeOf } from "@/lib/utils";
 import { AttendanceList, SpotPicker } from "@/components/domain";
-import { toast } from "@/components/toast";
+import { toast, toastDone } from "@/components/toast";
 import { Avatar, Badge, Button, Card, Empty, Field, Input, Modal, Select, Textarea } from "@/components/ui";
 
 export default function AdminSessionPage() {
@@ -75,8 +75,7 @@ export default function AdminSessionPage() {
             <Button
               variant="secondary"
               onClick={() => {
-                restoreSession(session.id);
-                toast("Clase restablecida. Las reservaciones canceladas no se recuperan.");
+                toastDone(restoreSession(session.id), "Clase restablecida. Las reservaciones canceladas no se recuperan.");
               }}
             >
               <RotateCcw size={16} /> Restablecer
@@ -86,8 +85,7 @@ export default function AdminSessionPage() {
               variant="danger"
               onClick={() => {
                 if (!confirm(`¿Cancelar esta clase? Se cancelarán ${occ} reservación(es) y se devolverán los créditos.`)) return;
-                cancelSession(session.id);
-                toast("Clase cancelada y créditos devueltos.");
+                toastDone(cancelSession(session.id), "Clase cancelada y créditos devueltos.");
               }}
             >
               <Ban size={16} /> Cancelar clase
@@ -154,7 +152,7 @@ function EditSessionModal({ session, onClose }: { session: Session; onClose: () 
       return toast(`El salón ${room?.name} solo tiene ${max} lugares y hay ${occ} inscritos.`, false);
     const [y, mo, d] = date.split("-").map(Number);
     const [h, m] = time.split(":").map(Number);
-    upsertSession({
+    toastDone(upsertSession({
       ...session,
       startsAt: new Date(y, mo - 1, d, h, m).toISOString(),
       teacherId,
@@ -162,8 +160,7 @@ function EditSessionModal({ session, onClose }: { session: Session; onClose: () 
       capacity: db.settings.spotSelection ? Math.min(capacity, max) : capacity,
       durationMin: duration,
       notes: notes.trim() || undefined,
-    });
-    toast("Clase actualizada.");
+    }), "Clase actualizada.");
     onClose();
   };
 

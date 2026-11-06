@@ -20,7 +20,13 @@ const useToasts = create<{ items: Toast[]; push: (text: string, ok?: boolean) =>
 }));
 
 export const toast = (text: string, ok = true) => useToasts.getState().push(text, ok);
-export const toastResult = (r: { ok: boolean; message: string }) => toast(r.message, r.ok);
+type R = { ok: boolean; message: string };
+/** Muestra el resultado de una acción (acepta promesas) y lo devuelve. */
+export async function toastResult<T extends R>(r: T | Promise<T>): Promise<T> {
+  const x = await r;
+  if (x.message) toast(x.message, x.ok);
+  return x;
+}
 
 export function Toaster() {
   const items = useToasts((s) => s.items);
@@ -41,4 +47,11 @@ export function Toaster() {
       ))}
     </div>
   );
+}
+
+/** Espera una acción: si sale bien muestra `okMsg`; si falla, el error real. */
+export async function toastDone<T extends R>(p: T | Promise<T>, okMsg: string): Promise<T> {
+  const x = await p;
+  toast(x.ok ? okMsg : x.message, x.ok);
+  return x;
 }

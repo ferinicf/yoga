@@ -5,7 +5,7 @@ import { Pencil, Plus, Star } from "lucide-react";
 import { useDB, useStore } from "@/lib/store";
 import type { Plan } from "@/lib/types";
 import { cn, formatMoney, uid } from "@/lib/utils";
-import { toast } from "@/components/toast";
+import { toast, toastDone } from "@/components/toast";
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, Textarea, Toggle } from "@/components/ui";
 
 export default function PlansPage() {
@@ -88,13 +88,15 @@ function PlanModal({ plan, onClose }: { plan?: Plan; onClose: () => void }) {
   const toggleDisc = (id: string) =>
     setP({ ...p, disciplineIds: p.disciplineIds.includes(id) ? p.disciplineIds.filter((x) => x !== id) : [...p.disciplineIds, id] });
 
-  const save = () => {
+  const save = async () => {
     if (!p.name.trim()) return toast("El nombre es obligatorio.", false);
     if (p.price < 0 || p.validityDays < 1) return toast("Revisa precio y vigencia.", false);
     if (p.credits !== null && p.credits < 1) return toast("El paquete necesita al menos 1 clase.", false);
-    upsert({ ...p, name: p.name.trim(), description: p.description.trim() });
-    toast(plan ? "Plan actualizado. Los paquetes ya vendidos no cambian." : "Plan creado.");
-    onClose();
+    const r = await toastDone(
+      upsert({ ...p, name: p.name.trim(), description: p.description.trim() }),
+      plan ? "Plan actualizado. Los paquetes ya vendidos no cambian." : "Plan creado.",
+    );
+    if (r.ok) onClose();
   };
 
   return (

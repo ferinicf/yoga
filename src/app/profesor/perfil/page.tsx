@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { startOfMonth } from "date-fns";
 import { useCurrentUser, useDB, useStore } from "@/lib/store";
-import { toast } from "@/components/toast";
+import { toastResult } from "@/components/toast";
 import { Avatar, Button, Card, Field, Input, PageHeader, Textarea } from "@/components/ui";
 
 export default function TeacherProfile() {
@@ -50,8 +50,7 @@ export default function TeacherProfile() {
           className="grid gap-4 md:grid-cols-2"
           onSubmit={(e) => {
             e.preventDefault();
-            upsertUser({ ...user, ...form });
-            toast("Perfil actualizado.");
+            toastResult(upsertUser({ ...user, ...form }));
           }}
         >
           <Field label="Nombre">

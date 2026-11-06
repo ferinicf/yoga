@@ -46,8 +46,8 @@ export function AppShell({ role, root, nav, children }: { role: Role; root: stri
 
   const mobileItems = nav.filter((n) => n.mobile);
   const hasMore = mobileItems.length < nav.length;
-  const doLogout = () => {
-    logout();
+  const doLogout = async () => {
+    await logout();
     router.replace("/");
   };
 

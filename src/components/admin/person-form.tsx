@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useDB, useStore } from "@/lib/store";
 import type { Role, User } from "@/lib/types";
 import { uid } from "@/lib/utils";
-import { toast } from "@/components/toast";
+import { toast, toastDone } from "@/components/toast";
 import { Button, Field, Input, Modal, Textarea, Toggle } from "@/components/ui";
 
 export const PERSON_COLORS = ["#7C9A92", "#C98B6B", "#8E7CC3", "#D4A373", "#6B9AC4", "#B5838D", "#6D8B74", "#E09F7D"];
@@ -45,14 +45,14 @@ export function PersonFormModal({
   const [color, setColor] = useState(user?.color ?? PERSON_COLORS[db.users.length % PERSON_COLORS.length]);
   const [active, setActive] = useState(user?.active ?? true);
 
-  const save = () => {
+  const save = async () => {
     if (!name.trim()) return toast("El nombre es obligatorio.", false);
     const mail = email.trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(mail)) return toast("Escribe un correo válido.", false);
     if (db.users.some((u) => u.email.toLowerCase() === mail && u.id !== user?.id))
       return toast("Ya existe una persona con ese correo.", false);
     const id = user?.id ?? uid("u");
-    upsertUser({
+    const r = await toastDone(upsertUser({
       id,
       name: name.trim(),
       email: mail,
@@ -65,8 +65,8 @@ export function PersonFormModal({
       birthday: birthday || undefined,
       active,
       createdAt: user?.createdAt ?? new Date().toISOString(),
-    });
-    toast(user ? "Datos actualizados." : role === "teacher" ? "Profesor agregado." : "Alumno registrado.");
+    }), user ? "Datos actualizados." : role === "teacher" ? "Profesor agregado." : "Alumno registrado.");
+    if (!r.ok) return;
     onSaved?.(id);
     onClose();
   };

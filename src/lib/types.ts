@@ -170,6 +170,8 @@ export interface Settings {
   /** Si no asiste, el crédito se pierde (siempre se descuenta al reservar). */
   noShowPenalty: boolean;
   currency: "MXN";
+  /** Correos que entran como administrador al registrarse (solo modo real). */
+  adminEmails?: string[];
 }
 
 export interface DB {

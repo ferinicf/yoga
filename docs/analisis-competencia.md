@@ -78,14 +78,14 @@ Diferenciadores que vende: usuarios ilimitados, comisión baja, **no-show fee ta
 | Límite de reservas por día/semana y ventana de reserva | Boostapp · Fitco #22 | ✅ |
 | Cancelación con reembolso hasta X horas antes; cancelación tardía | Boostapp `hours_to_cancellation` | ✅ |
 | Reservar para un amigo | Boostapp `allow_friend_rsvp` | ✅ |
-| Pago en línea o **pago en recepción** (confirmado por admin) | Boostapp | ✅ (pago simulado) |
+| Pago en línea o **pago en recepción** (confirmado por admin) | Boostapp | ✅ recepción · ⏳ en línea |
 | Cupones de descuento | ambos | ✅ |
 | **Check-in con código / QR**, pase de lista y no-show | Fitco #7 | ✅ |
 | Espacio de **profesor** (sus clases, lista de asistencia) | — | ✅ |
 | Panel **admin**: dashboard, calendario, alumnos (CRM básico), ventas/POS, planes, salones, profesores, configuración | Fitco #1, #14, #21 | ✅ |
 | Marca propia (nombre, color) | Fitco #13 | ✅ |
 | App instalable (PWA) para iPhone/iPad/Android | Fitco #13 | ✅ básica |
-| Backend real + login real | Boostapp JWT | ⏳ siguiente paso (ver `supabase/schema.sql`) |
+| Backend real + login real | Boostapp JWT | ✅ Supabase (`supabase/migrations/`) |
 | Pagos reales (Stripe / Mercado Pago) | ambos | ⏳ |
 | Notificaciones push / email / WhatsApp | ambos | ⏳ |
 | Política de cancelación distinta para clases de mañana | Boostapp | ⏳ |

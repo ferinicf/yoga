@@ -32,7 +32,7 @@ export function SessionCard({
     <Comp
       onClick={onClick}
       className={cn(
-        "flex w-full items-stretch gap-3 rounded-2xl border border-line bg-surface p-3 text-left transition md:p-4",
+        "flex w-full min-w-0 items-stretch gap-3 overflow-hidden rounded-2xl border border-line bg-surface p-3 text-left transition md:p-4",
         onClick && "hover:border-stone-300 hover:shadow-sm active:scale-[0.995]",
         cancelled && "opacity-60",
       )}
@@ -139,6 +139,7 @@ export function BookingSheet({
   const [spot, setSpot] = useState<string>();
   const [guest, setGuest] = useState("");
   const [withGuest, setWithGuest] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const info = useMemo(() => {
     if (!session) return null;
@@ -165,22 +166,24 @@ export function BookingSheet({
     onClose();
   };
 
-  const doBook = () => {
-    const r = book(session.id, user.id, { spot });
-    toastResult(r);
+  const doBook = async () => {
+    setBusy(true);
+    const r = await toastResult(book(session.id, user.id, { spot }));
+    setBusy(false);
     if (r.ok) close();
   };
-  const doGuest = () => {
+  const doGuest = async () => {
     if (!guest.trim()) return toast("Escribe el nombre de tu invitado/a.", false);
-    const r = book(session.id, user.id, { guestName: guest.trim() });
-    toastResult(r);
+    setBusy(true);
+    const r = await toastResult(book(session.id, user.id, { guestName: guest.trim() }));
+    setBusy(false);
     if (r.ok) close();
   };
 
   let footer: React.ReactNode;
   if (res) {
     footer = (
-      <Button variant="outline" className="w-full text-red-600" onClick={() => { toastResult(cancel(res.id)); close(); }}>
+      <Button variant="outline" className="w-full text-red-600" disabled={busy} onClick={async () => { setBusy(true); await toastResult(cancel(res.id)); setBusy(false); close(); }}>
         {res.status === "waitlist" ? "Salir de la lista de espera" : "Cancelar mi reservación"}
       </Button>
     );
@@ -196,7 +199,7 @@ export function BookingSheet({
     );
   } else {
     footer = (
-      <Button className="w-full" size="lg" onClick={doBook} disabled={!full && db.settings.spotSelection && !spot}>
+      <Button className="w-full" size="lg" onClick={doBook} disabled={busy || (!full && db.settings.spotSelection && !spot)}>
         {full ? "Unirme a la lista de espera" : db.settings.spotSelection ? (spot ? `Reservar lugar ${spot}` : "Elige tu lugar") : "Reservar"}
       </Button>
     );
@@ -250,7 +253,7 @@ export function BookingSheet({
             ) : (
               <div className="flex gap-2">
                 <Input placeholder="Nombre de tu invitado/a" value={guest} onChange={(e) => setGuest(e.target.value)} />
-                <Button variant="secondary" onClick={doGuest}>
+                <Button variant="secondary" onClick={doGuest} disabled={busy}>
                   Agregar
                 </Button>
               </div>
@@ -278,6 +281,12 @@ export function BookingSheet({
       </div>
     </Modal>
   );
+}
+
+function toastIfError(p: Promise<{ ok: boolean; message: string }>) {
+  p.then((r) => {
+    if (!r.ok) toast(r.message, false);
+  });
 }
 
 /* ---------- Lista de asistencia (profesor y admin) ---------- */
@@ -369,7 +378,7 @@ export function AttendanceList({ session, staffId }: { session: Session; staffId
                 ) : (
                   <div className="flex shrink-0 gap-1">
                     <button
-                      onClick={() => setAttendance(r.id, r.status === "attended" ? "booked" : "attended")}
+                      onClick={() => toastIfError(setAttendance(r.id, r.status === "attended" ? "booked" : "attended"))}
                       className={cn(
                         "flex h-10 w-10 items-center justify-center rounded-xl border transition",
                         r.status === "attended" ? "border-emerald-600 bg-emerald-600 text-white" : "border-line hover:bg-emerald-50",
@@ -379,7 +388,7 @@ export function AttendanceList({ session, staffId }: { session: Session; staffId
                       <Check size={18} />
                     </button>
                     <button
-                      onClick={() => setAttendance(r.id, r.status === "no_show" ? "booked" : "no_show")}
+                      onClick={() => toastIfError(setAttendance(r.id, r.status === "no_show" ? "booked" : "no_show"))}
                       className={cn(
                         "flex h-10 w-10 items-center justify-center rounded-xl border transition",
                         r.status === "no_show" ? "border-red-600 bg-red-600 text-white" : "border-line hover:bg-red-50",
@@ -411,9 +420,8 @@ export function AttendanceList({ session, staffId }: { session: Session; staffId
             <li key={u.id}>
               <button
                 className="flex w-full items-center gap-3 py-2.5 text-left"
-                onClick={() => {
-                  const r = book(session.id, u.id, { staff: true });
-                  toastResult(r);
+                onClick={async () => {
+                  const r = await toastResult(book(session.id, u.id, { staff: true }));
                   if (r.ok) setAdding(false);
                 }}
               >

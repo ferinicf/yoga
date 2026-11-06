@@ -7,6 +7,7 @@ import { couponDiscount, creditsLeft, currentMemberships, planPurchases } from "
 import type { Plan } from "@/lib/types";
 import { cn, fmt, formatMoney } from "@/lib/utils";
 import { toastResult } from "@/components/toast";
+import { quoteCoupon } from "@/lib/live";
 import { Badge, Button, Card, Input, Modal, PageHeader } from "@/components/ui";
 
 export default function PlansPage() {
@@ -17,28 +18,42 @@ export default function PlansPage() {
   const [coupon, setCoupon] = useState("");
   const [applied, setApplied] = useState<string>();
   const [method, setMethod] = useState<"online" | "studio">("online");
+  const [busy, setBusy] = useState(false);
+  // En modo real aún no hay pasarela de pago: las compras se pagan en recepción.
+  const onlineAvailable = useStore((s) => s.mode) === "demo";
+  const payMethod = onlineAvailable ? method : "studio";
 
   const mems = currentMemberships(db, user.id);
   const plans = db.plans.filter((p) => p.active);
   const disc = (ids: string[]) =>
     ids.length === 0 ? "Todas las clases" : ids.map((id) => db.disciplines.find((d) => d.id === id)?.name).join(", ");
 
-  const c = plan ? couponDiscount(db, applied, plan.price) : { discount: 0 };
+  const [liveQuote, setLiveQuote] = useState<{ discount: number; error?: string }>({ discount: 0 });
+  const c = !plan ? { discount: 0 } : onlineAvailable ? couponDiscount(db, applied, plan.price) : liveQuote;
+  const applyCoupon = async () => {
+    const code = coupon.trim() || undefined;
+    setApplied(code);
+    if (!onlineAvailable && plan) setLiveQuote(code ? await quoteCoupon(code, plan.price) : { discount: 0 });
+  };
   const close = () => {
     setPlan(null);
     setCoupon("");
     setApplied(undefined);
+    setLiveQuote({ discount: 0 });
     setMethod("online");
   };
-  const buy = () => {
+  const buy = async () => {
     if (!plan) return;
-    const r = purchase(user.id, plan.id, {
-      method: method === "online" ? "en_linea" : "efectivo",
-      couponCode: applied,
-      pending: method === "studio",
-      byUserId: user.id,
-    });
-    toastResult(r);
+    setBusy(true);
+    const r = await toastResult(
+      purchase(user.id, plan.id, {
+        method: payMethod === "online" ? "en_linea" : "efectivo",
+        couponCode: applied,
+        pending: payMethod === "studio",
+        byUserId: user.id,
+      }),
+    );
+    setBusy(false);
     if (r.ok) close();
   };
 
@@ -106,8 +121,8 @@ export default function PlansPage() {
         onClose={close}
         title="Confirmar compra"
         footer={
-          <Button className="w-full" size="lg" onClick={buy}>
-            {method === "online" ? `Pagar ${formatMoney((plan?.price ?? 0) - c.discount)}` : "Apartar y pagar en recepción"}
+          <Button className="w-full" size="lg" onClick={buy} disabled={busy}>
+            {payMethod === "online" ? `Pagar ${formatMoney((plan?.price ?? 0) - c.discount)}` : "Apartar y pagar en recepción"}
           </Button>
         }
       >
@@ -121,7 +136,7 @@ export default function PlansPage() {
             </div>
             <div className="flex gap-2">
               <Input placeholder="Cupón de descuento" value={coupon} onChange={(e) => setCoupon(e.target.value.toUpperCase())} />
-              <Button variant="outline" onClick={() => setApplied(coupon || undefined)}>
+              <Button variant="outline" onClick={applyCoupon}>
                 Aplicar
               </Button>
             </div>
@@ -142,7 +157,18 @@ export default function PlansPage() {
                 <span>{formatMoney(plan.price - c.discount)}</span>
               </div>
             </div>
-            <div className="grid gap-2">
+            {!onlineAvailable && (
+              <div className="flex items-start gap-3 rounded-2xl border border-line p-3">
+                <Store size={20} className="mt-0.5 shrink-0" />
+                <span>
+                  <span className="block text-sm font-medium">Pago en recepción</span>
+                  <span className="block text-xs text-muted">
+                    Tu paquete queda apartado y se activa cuando el estudio confirme tu pago. El pago en línea llegará pronto.
+                  </span>
+                </span>
+              </div>
+            )}
+            <div className={cn("grid gap-2", !onlineAvailable && "hidden")}>
               <button
                 onClick={() => setMethod("online")}
                 className={cn("flex items-center gap-3 rounded-2xl border p-3 text-left", method === "online" ? "border-brand ring-1 ring-brand" : "border-line")}

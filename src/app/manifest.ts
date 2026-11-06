@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Mi Estudio de Yoga",
-    short_name: "Yoga",
+    name: "Marea",
+    short_name: "Marea",
     description: "Reserva tus clases y administra tu estudio.",
     start_url: "/",
     display: "standalone",

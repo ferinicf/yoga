@@ -15,16 +15,28 @@ npm install
 npm run dev
 ```
 
-Abre http://localhost:3000 y elige un perfil (modo demo).
+Abre http://localhost:3000.
 
-## Modo demo y siguiente paso
+## Base de datos (Supabase)
 
-Hoy los datos viven en el navegador (`localStorage`) con datos de ejemplo. En **Admin → Configuración** puedes restablecerlos.
-Toda la lógica está separada:
+La app está conectada al proyecto Supabase **Marea** (organización "yoga y pilates"):
+
+- **Login real** con correo y contraseña (confirmación por correo). Al registrarse, cada persona entra como alumno.
+- **Administradores:** quien se registre y confirme su correo con uno de los correos de *Admin → Configuración → Administradores* entra como admin.
+- **Profesores:** el admin los da de alta en *Admin → Profesores*; cuando la persona se registra con ese mismo correo, su cuenta queda ligada al perfil de profesor.
+- **Seguridad:** las reglas (créditos, límites, cancelaciones, lista de espera, pagos) se aplican en funciones de la base; las políticas RLS impiden que un alumno vea datos de otros o se dé créditos.
+- **Pagos:** todavía no hay pasarela; lo que compra un alumno queda *pendiente* hasta que recepción confirma el pago en *Admin → Ventas*.
+
+Migraciones en `supabase/migrations/` (ya aplicadas al proyecto).
+
+## Modo demo
+
+En la pantalla de acceso, "Ver demo con datos de ejemplo" abre la app con datos ficticios guardados solo en el navegador.
+
+## Código
 
 - `src/lib/types.ts` — modelo de datos
-- `src/lib/rules.ts` — reglas de negocio (créditos, límites, cancelación, lista de espera)
-- `src/lib/store.ts` — acciones (cada una equivale a un endpoint)
-- `supabase/schema.sql` — esquema de base de datos propuesto para producción
-
-Para producción, solo hay que reemplazar las acciones del store por llamadas al backend (Supabase), agregar login real y la pasarela de pago (Stripe / Mercado Pago).
+- `src/lib/rules.ts` — reglas de negocio (también se usan para mostrar avisos en pantalla)
+- `src/lib/live.ts` — lectura y acciones contra Supabase
+- `src/lib/store.ts` — estado de la app (modo real o demo)
+- `supabase/migrations/` — esquema, seguridad y funciones

@@ -230,13 +230,13 @@ export function createSeed(now = new Date()): DB {
   return {
     version: DB_VERSION,
     settings: {
-      studioName: "Mi Estudio de Yoga",
+      studioName: "Marea",
       tagline: "Respira, muévete, conecta.",
       brandColor: "#5B7F6E",
       address: "Av. Ejemplo 123, Col. Centro, CDMX",
       phone: "55 0000 0000",
       whatsapp: "5500000000",
-      instagram: "miestudio",
+      instagram: "marea",
       cancelHours: 8,
       bookingWindowDays: 14,
       dayLimit: 2,

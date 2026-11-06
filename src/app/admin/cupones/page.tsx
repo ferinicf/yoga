@@ -5,7 +5,7 @@ import { Pencil, Plus, Ticket } from "lucide-react";
 import { useDB, useStore } from "@/lib/store";
 import type { Coupon } from "@/lib/types";
 import { fmt, formatMoney, uid } from "@/lib/utils";
-import { toast } from "@/components/toast";
+import { toast, toastDone } from "@/components/toast";
 import { Badge, Button, Card, Empty, Field, Input, Modal, PageHeader, Segmented, Toggle } from "@/components/ui";
 
 function couponState(c: Coupon): { label: string; tone: "green" | "gray" | "red" | "amber" } {
@@ -72,14 +72,13 @@ function CouponModal({ coupon, onClose }: { coupon?: Coupon; onClose: () => void
   const upsert = useStore((s) => s.upsertCoupon);
   const [c, setC] = useState<Coupon>(coupon ?? { id: uid("c"), code: "", kind: "percent", value: 10, active: true, maxUses: null, uses: 0 });
 
-  const save = () => {
+  const save = async () => {
     const code = c.code.trim().toUpperCase().replace(/\s+/g, "");
     if (!code) return toast("Escribe el código.", false);
     if (db.coupons.some((x) => x.code.toUpperCase() === code && x.id !== c.id)) return toast("Ese código ya existe.", false);
     if (c.value <= 0 || (c.kind === "percent" && c.value > 100)) return toast("Revisa el valor del descuento.", false);
-    upsert({ ...c, code });
-    toast(coupon ? "Cupón actualizado." : "Cupón creado.");
-    onClose();
+    const r = await toastDone(upsert({ ...c, code }), coupon ? "Cupón actualizado." : "Cupón creado.");
+    if (r.ok) onClose();
   };
 
   return (

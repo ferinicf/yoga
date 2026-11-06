@@ -4,7 +4,7 @@ import { useState } from "react";
 import { RotateCcw, Save } from "lucide-react";
 import { useSettings, useStore } from "@/lib/store";
 import type { Settings } from "@/lib/types";
-import { toast } from "@/components/toast";
+import { toast, toastDone } from "@/components/toast";
 import { Button, Card, Field, Input, PageHeader, Toggle } from "@/components/ui";
 
 const BRAND_PRESETS = ["#5B7F6E", "#7A6A8F", "#B0705A", "#4F6D8A", "#8A7354", "#3F6B6B", "#A15C73", "#2F3E36"];
@@ -24,6 +24,7 @@ export default function SettingsPage() {
   const settings = useSettings();
   const update = useStore((s) => s.updateSettings);
   const resetDemo = useStore((s) => s.resetDemo);
+  const isLive = useStore((s) => s.mode) === "live";
   const [s, setS] = useState<Settings>(settings);
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setS((prev) => ({ ...prev, [k]: v }));
   const dirty = JSON.stringify(s) !== JSON.stringify(settings);
@@ -31,8 +32,7 @@ export default function SettingsPage() {
   const save = () => {
     if (!s.studioName.trim()) return toast("El nombre del estudio es obligatorio.", false);
     if (!/^#[0-9a-fA-F]{6}$/.test(s.brandColor)) return toast("El color debe tener formato #RRGGBB.", false);
-    update({ ...s, studioName: s.studioName.trim() });
-    toast("Configuración guardada.");
+    toastDone(update({ ...s, studioName: s.studioName.trim() }), "Configuración guardada.");
   };
 
   return (
@@ -124,6 +124,20 @@ export default function SettingsPage() {
           </div>
         </Card>
 
+        {isLive ? (
+        <Card className="space-y-3 p-5 lg:col-span-2">
+          <h2 className="text-lg font-semibold">Administradores</h2>
+          <p className="text-sm text-muted">
+            Quien se registre (y confirme su correo) con uno de estos correos entra como administrador. Uno por línea.
+          </p>
+          <textarea
+            className="min-h-24 w-full rounded-xl border border-line bg-surface px-3 py-2 text-[16px] outline-none ring-brand focus:border-transparent focus:ring-2 md:text-sm"
+            value={(s.adminEmails ?? []).join("\n")}
+            onChange={(e) => set("adminEmails", e.target.value.split(/[\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean))}
+            aria-label="Correos de administradores"
+          />
+        </Card>
+        ) : (
         <Card className="p-5 lg:col-span-2">
           <h2 className="text-lg font-semibold">Datos de demostración</h2>
           <p className="mt-1 text-sm text-muted">
@@ -132,9 +146,9 @@ export default function SettingsPage() {
           <Button
             variant="outline"
             className="mt-4 text-red-600"
-            onClick={() => {
+            onClick={async () => {
               if (!confirm("¿Restablecer todos los datos de demostración? Se perderán tus cambios.")) return;
-              resetDemo();
+              await resetDemo();
               setS(useStore.getState().db.settings);
               toast("Datos de demostración restablecidos.");
             }}
@@ -142,6 +156,7 @@ export default function SettingsPage() {
             <RotateCcw size={16} /> Restablecer datos demo
           </Button>
         </Card>
+        )}
       </div>
 
       {dirty && (

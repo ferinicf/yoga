@@ -9,7 +9,7 @@ import { creditsLeft } from "@/lib/rules";
 import type { Membership } from "@/lib/types";
 import { fmt, formatMoney, PAYMENT_LABEL, timeOf } from "@/lib/utils";
 import { ReservationStatusBadge } from "@/components/domain";
-import { toast } from "@/components/toast";
+import { toastDone } from "@/components/toast";
 import { Avatar, Badge, Button, Card, Empty, PageHeader, Segmented } from "@/components/ui";
 import { PersonFormModal } from "@/components/admin/person-form";
 import { SellModal } from "@/components/admin/sell-modal";
@@ -84,15 +84,15 @@ export default function StudentDetailPage() {
             <div className="flex gap-1">
               {m.credits !== null && (
                 <>
-                  <Button variant="outline" size="sm" className="h-11 w-11 px-0" aria-label="Quitar crédito" onClick={() => { adjustCredits(m.id, -1); toast("Crédito retirado."); }}>
+                  <Button variant="outline" size="sm" className="h-11 w-11 px-0" aria-label="Quitar crédito" onClick={() => { toastDone(adjustCredits(m.id, -1), "Crédito retirado."); }}>
                     <Minus size={16} />
                   </Button>
-                  <Button variant="outline" size="sm" className="h-11 w-11 px-0" aria-label="Agregar crédito" onClick={() => { adjustCredits(m.id, 1); toast("Crédito agregado."); }}>
+                  <Button variant="outline" size="sm" className="h-11 w-11 px-0" aria-label="Agregar crédito" onClick={() => { toastDone(adjustCredits(m.id, 1), "Crédito agregado."); }}>
                     <Plus size={16} />
                   </Button>
                 </>
               )}
-              <Button variant="outline" size="sm" className="h-11" onClick={() => { extendMembership(m.id, 7); toast("Vigencia extendida 7 días."); }}>
+              <Button variant="outline" size="sm" className="h-11" onClick={() => { toastDone(extendMembership(m.id, 7), "Vigencia extendida 7 días."); }}>
                 <CalendarPlus size={16} /> +7 días
               </Button>
             </div>

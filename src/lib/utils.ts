@@ -2,7 +2,8 @@ import { format, isSameDay, startOfWeek, addDays } from "date-fns";
 import { es } from "date-fns/locale";
 
 export function uid(prefix = "id"): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
+  void prefix;
+  return crypto.randomUUID();
 }
 
 export function cn(...classes: (string | false | null | undefined)[]): string {

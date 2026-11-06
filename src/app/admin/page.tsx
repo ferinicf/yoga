@@ -8,7 +8,7 @@ import { useCurrentUser, useDB, useStore } from "@/lib/store";
 import { activeStudents, occupied, sessionsOn } from "@/lib/rules";
 import { capitalize, fmt, formatMoney, longDay, PAYMENT_LABEL } from "@/lib/utils";
 import { SessionCard } from "@/components/domain";
-import { toast } from "@/components/toast";
+import { toastDone } from "@/components/toast";
 import { Avatar, Button, Card, Empty, PageHeader } from "@/components/ui";
 import { RevenueChart, StatTile } from "@/components/admin/charts";
 
@@ -143,8 +143,7 @@ export default function AdminDashboard() {
                       <Button
                         size="sm"
                         onClick={() => {
-                          confirmSale(s.id);
-                          toast("Pago confirmado. Paquete activado.");
+                          toastDone(confirmSale(s.id), "Pago confirmado. Paquete activado.");
                         }}
                       >
                         Confirmar

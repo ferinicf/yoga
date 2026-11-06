@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * Store del modo demo: todos los datos viven en el navegador (localStorage).
- * Cada acción equivale a un endpoint del backend futuro (ver supabase/schema.sql),
- * así que para conectar una base de datos real basta con reemplazar estas acciones.
+ * Estado de la app. Dos modos:
+ *  - "live": datos reales en Supabase (ver src/lib/live.ts y supabase/migrations).
+ *  - "demo": datos de ejemplo guardados solo en este navegador.
+ * Las pantallas llaman a las mismas acciones en ambos modos.
  */
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
@@ -34,38 +35,32 @@ import {
   waitlist,
 } from "./rules";
 import { roomSpots, uid } from "./utils";
+import { live, loadAll } from "./live";
+import { supabase } from "./supabase";
 
-export type Result = { ok: true; message: string; id?: string } | { ok: false; message: string };
+export type { Result } from "./live";
+import type { Result } from "./live";
 
-interface State {
-  db: DB;
-  currentUserId: string | null;
-  hydrated: boolean;
-  setHydrated: () => void;
-  login: (userId: string) => void;
-  logout: () => void;
+type Res = Result;
 
-  // Reservas
-  book: (sessionId: string, userId: string, opts?: { spot?: string; guestName?: string; staff?: boolean }) => Result;
-  cancelReservation: (reservationId: string, opts?: { staff?: boolean; refund?: boolean }) => Result;
+/** Acciones del modo demo (síncronas, sobre los datos locales). */
+interface DemoActions {
+  book: (sessionId: string, userId: string, opts?: { spot?: string; guestName?: string; staff?: boolean }) => Res;
+  cancelReservation: (reservationId: string, opts?: { staff?: boolean; refund?: boolean }) => Res;
   setAttendance: (reservationId: string, status: "attended" | "no_show" | "booked") => void;
-  checkInByCode: (sessionId: string, code: string) => Result;
-
-  // Ventas
+  checkInByCode: (sessionId: string, code: string) => Res;
   purchase: (
     userId: string,
     planId: string,
     opts: { method: PaymentMethod; couponCode?: string; pending?: boolean; byUserId: string; startsAt?: string },
-  ) => Result;
+  ) => Res;
   confirmSale: (saleId: string, method?: PaymentMethod) => void;
   refundSale: (saleId: string) => void;
   adjustCredits: (membershipId: string, delta: number) => void;
   extendMembership: (membershipId: string, days: number) => void;
-
-  // Catálogo / configuración
   upsertDiscipline: (d: Discipline) => void;
   upsertRoom: (r: Room) => void;
-  deleteRoom: (id: string) => Result;
+  deleteRoom: (id: string) => Res;
   upsertTemplate: (t: ClassTemplate) => void;
   deleteTemplate: (id: string) => void;
   upsertSession: (s: Session) => void;
@@ -77,6 +72,25 @@ interface State {
   updateSettings: (s: Partial<Settings>) => void;
   ensureSessions: () => void;
   resetDemo: () => void;
+}
+
+type Async<T> = { [K in keyof T]: T[K] extends (...a: infer A) => unknown ? (...a: A) => Promise<Result> : never };
+
+export type Mode = "live" | "demo";
+
+interface State extends Async<DemoActions> {
+  db: DB;
+  currentUserId: string | null;
+  hydrated: boolean;
+  /** "live" = Supabase; "demo" = datos de ejemplo en el navegador. */
+  mode: Mode;
+  loading: boolean;
+  setHydrated: () => void;
+  setMode: (m: Mode) => void;
+  /** Recarga los datos desde Supabase (modo live). */
+  refresh: () => Promise<void>;
+  login: (userId: string) => void;
+  logout: () => Promise<void>;
 }
 
 const now = () => new Date().toISOString();
@@ -106,13 +120,7 @@ export const useStore = create<State>()(
         }
       };
 
-      return {
-        db: createSeed(),
-        currentUserId: null,
-        hydrated: false,
-        setHydrated: () => set({ hydrated: true }),
-        login: (userId) => set({ currentUserId: userId }),
-        logout: () => set({ currentUserId: null }),
+      const demo: DemoActions = {
 
         book: (sessionId, userId, opts = {}) => {
           const db = get().db;
@@ -201,17 +209,17 @@ export const useStore = create<State>()(
             return { ok: false, message: `${user.name} está en lista de espera, no tiene lugar confirmado.` };
           }
           if (r) {
-            get().setAttendance(r.id, "attended");
+            demo.setAttendance(r.id, "attended");
             return { ok: true, message: `Check-in de ${user.name}${r.spot ? ` · lugar ${r.spot}` : ""}.` };
           }
-          const res = get().book(sessionId, user.id, { staff: true });
+          const res = demo.book(sessionId, user.id, { staff: true });
           if (!res.ok) return { ok: false, message: `${user.name}: ${res.message}` };
           const created = get().db.reservations.find((x) => x.id === res.id);
           if (created?.status === "waitlist") {
-            get().cancelReservation(created.id, { staff: true });
+            demo.cancelReservation(created.id, { staff: true });
             return { ok: false, message: "La clase está llena." };
           }
-          if (res.id) get().setAttendance(res.id, "attended");
+          if (res.id) demo.setAttendance(res.id, "attended");
           return { ok: true, message: `${user.name} agregado/a a la clase y con check-in.` };
         },
 
@@ -454,14 +462,105 @@ export const useStore = create<State>()(
 
         resetDemo: () => set({ db: createSeed(), currentUserId: get().currentUserId }),
       };
+
+      const isLive = () => get().mode === "live";
+      /** En modo live ejecuta la acción en Supabase y recarga; en demo, la acción local. */
+      const run = async (liveCall: () => Promise<Result>, demoCall: () => Result | void, okMsg = "Listo."): Promise<Result> => {
+        if (!isLive()) {
+          const r = demoCall();
+          return r ?? { ok: true, message: okMsg };
+        }
+        const r = await liveCall();
+        await get().refresh();
+        return r;
+      };
+      const me = () => get().currentUserId ?? "";
+
+      return {
+        db: createSeed(),
+        currentUserId: null,
+        hydrated: false,
+        mode: "live",
+        loading: false,
+        setHydrated: () => set({ hydrated: true }),
+        setMode: (mode) => set({ mode, currentUserId: null, db: createSeed() }),
+        refresh: async () => {
+          if (!isLive()) return;
+          set({ loading: true });
+          try {
+            const { db, currentUserId } = await loadAll();
+            // Si mientras cargaba se cambió al modo demo, descarta esta respuesta.
+            if (!isLive()) {
+              set({ loading: false });
+              return;
+            }
+            set({ db, currentUserId, loading: false });
+          } catch (e) {
+            set({ loading: false });
+            throw e;
+          }
+        },
+        login: (userId) => set({ currentUserId: userId }),
+        logout: async () => {
+          if (isLive()) await supabase().auth.signOut();
+          set({ currentUserId: null });
+        },
+
+        book: (sessionId, userId, opts = {}) =>
+          run(() => live.book(sessionId, userId, opts), () => demo.book(sessionId, userId, opts)),
+        cancelReservation: (id, opts = {}) =>
+          run(() => live.cancelReservation(id, opts), () => demo.cancelReservation(id, opts)),
+        setAttendance: (id, status) =>
+          run(() => live.setAttendance(id, status), () => demo.setAttendance(id, status), "Asistencia actualizada."),
+        checkInByCode: (sessionId, code) =>
+          run(() => live.checkInByCode(sessionId, code), () => demo.checkInByCode(sessionId, code)),
+        purchase: (userId, planId, opts) =>
+          run(() => live.purchase(userId, planId, opts), () => demo.purchase(userId, planId, opts)),
+        confirmSale: (id, method) => run(() => live.confirmSale(id, method), () => demo.confirmSale(id, method), "Pago confirmado."),
+        refundSale: (id) => run(() => live.refundSale(id), () => demo.refundSale(id), "Venta reembolsada."),
+        adjustCredits: (id, delta) =>
+          run(() => live.adjustCredits(id, delta), () => demo.adjustCredits(id, delta), "Créditos actualizados."),
+        extendMembership: (id, days) =>
+          run(() => live.extendMembership(id, days), () => demo.extendMembership(id, days), "Vigencia extendida."),
+        upsertDiscipline: (x) => run(() => live.upsertDiscipline(x), () => demo.upsertDiscipline(x), "Disciplina guardada."),
+        upsertRoom: (x) => run(() => live.upsertRoom(x), () => demo.upsertRoom(x), "Salón guardado."),
+        deleteRoom: (id) => run(() => live.deleteRoom(id), () => demo.deleteRoom(id)),
+        upsertTemplate: (t) => run(() => live.upsertTemplate(t), () => demo.upsertTemplate(t), "Horario guardado."),
+        deleteTemplate: (id) => run(() => live.deleteTemplate(id), () => demo.deleteTemplate(id), "Clase recurrente desactivada."),
+        upsertSession: (x) => run(() => live.upsertSession(x), () => demo.upsertSession(x), "Clase guardada."),
+        cancelSession: (id) => run(() => live.cancelSession(id), () => demo.cancelSession(id), "Clase cancelada."),
+        restoreSession: (id) => run(() => live.restoreSession(id), () => demo.restoreSession(id), "Clase reactivada."),
+        upsertPlan: (x) => run(() => live.upsertPlan(x), () => demo.upsertPlan(x), "Plan guardado."),
+        upsertUser: (x) =>
+          run(
+            () => live.upsertUser(x, x.id === me() && get().db.users.find((u) => u.id === me())?.role !== "admin"),
+            () => demo.upsertUser(x),
+            "Guardado.",
+          ),
+        upsertCoupon: (x) => run(() => live.upsertCoupon(x), () => demo.upsertCoupon(x), "Cupón guardado."),
+        updateSettings: (x) => run(() => live.updateSettings(x), () => demo.updateSettings(x), "Configuración guardada."),
+        ensureSessions: async () => {
+          if (isLive()) {
+            await live.ensureSessions();
+            return { ok: true, message: "" };
+          }
+          demo.ensureSessions();
+          return { ok: true, message: "" };
+        },
+        resetDemo: async () => {
+          demo.resetDemo();
+          return { ok: true, message: "Datos de ejemplo restablecidos." };
+        },
+      };
     },
     {
       name: "yoga-demo-db",
-      version: DB_VERSION,
+      version: DB_VERSION + 1,
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ db: s.db, currentUserId: s.currentUserId }),
+      // En modo real no guardamos datos personales en el navegador.
+      partialize: (s) => (s.mode === "demo" ? { db: s.db, currentUserId: s.currentUserId, mode: s.mode } : { mode: s.mode }),
       skipHydration: true,
-      migrate: () => ({ db: createSeed(), currentUserId: null }) as unknown as State,
+      migrate: () => ({ mode: "live" }) as unknown as State,
     },
   ),
 );

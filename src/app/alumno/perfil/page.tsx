@@ -7,7 +7,7 @@ import { LogOut } from "lucide-react";
 import { useCurrentUser, useDB, useStore } from "@/lib/store";
 import { creditsLeft } from "@/lib/rules";
 import { fmt, formatMoney, PAYMENT_LABEL } from "@/lib/utils";
-import { toast } from "@/components/toast";
+import { toastResult } from "@/components/toast";
 import { Avatar, Badge, Button, Card, Field, Input, PageHeader } from "@/components/ui";
 
 export default function ProfilePage() {
@@ -15,6 +15,7 @@ export default function ProfilePage() {
   const user = useCurrentUser()!;
   const upsertUser = useStore((s) => s.upsertUser);
   const logout = useStore((s) => s.logout);
+  const isLive = useStore((s) => s.mode) === "live";
   const router = useRouter();
   const [form, setForm] = useState({ name: user.name, email: user.email, phone: user.phone, birthday: user.birthday ?? "" });
 
@@ -39,15 +40,21 @@ export default function ProfilePage() {
             className="grid gap-4 md:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault();
-              upsertUser({ ...user, ...form });
-              toast("Datos actualizados.");
+              toastResult(upsertUser({ ...user, ...form }));
             }}
           >
             <Field label="Nombre">
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </Field>
             <Field label="Correo">
-              <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                required
+                readOnly={isLive}
+                className={isLive ? "bg-bg text-muted" : undefined}
+              />
             </Field>
             <Field label="Teléfono">
               <Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -60,8 +67,8 @@ export default function ProfilePage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  logout();
+                onClick={async () => {
+                  await logout();
                   router.replace("/");
                 }}
               >

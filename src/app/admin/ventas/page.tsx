@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, Plus, Receipt } from "lucide-react";
 import { useDB, useStore } from "@/lib/store";
 import type { PaymentMethod, Sale } from "@/lib/types";
 import { capitalize, fmt, formatMoney, PAYMENT_LABEL } from "@/lib/utils";
-import { toast } from "@/components/toast";
+import { toastDone } from "@/components/toast";
 import { Avatar, Badge, Button, Card, Empty, Field, Modal, PageHeader, Segmented, Select } from "@/components/ui";
 import { SellModal } from "@/components/admin/sell-modal";
 
@@ -48,8 +48,7 @@ export default function SalesPage() {
 
   const doRefund = (s: Sale) => {
     if (!confirm(`¿Reembolsar ${formatMoney(s.total)} de "${s.concept}"? El paquete del alumno se cancela.`)) return;
-    refundSale(s.id);
-    toast("Venta reembolsada y paquete cancelado.");
+    toastDone(refundSale(s.id), "Venta reembolsada y paquete cancelado.");
   };
 
   const actions = (s: Sale) => (
@@ -222,8 +221,7 @@ export default function SalesPage() {
             size="lg"
             onClick={() => {
               if (!confirming) return;
-              confirmSale(confirming.id, method);
-              toast("Pago confirmado. El paquete ya está activo.");
+              toastDone(confirmSale(confirming.id, method), "Pago confirmado. El paquete ya está activo.");
               setConfirming(null);
             }}
           >

@@ -5,7 +5,7 @@ import { useCurrentUser, useDB, useStore } from "@/lib/store";
 import { couponDiscount } from "@/lib/rules";
 import type { PaymentMethod } from "@/lib/types";
 import { formatMoney, PAYMENT_LABEL } from "@/lib/utils";
-import { toastResult } from "@/components/toast";
+import { toastDone } from "@/components/toast";
 import { Button, Field, Input, Modal, Select, Toggle } from "@/components/ui";
 
 /** Punto de venta: vender un paquete a un alumno (pagado o pendiente). */
@@ -25,15 +25,17 @@ export function SellModal({ open, onClose, userId }: { open: boolean; onClose: (
   const plan = plans.find((p) => p.id === planId);
   const c = plan ? couponDiscount(db, coupon || undefined, plan.price) : { discount: 0 };
 
-  const submit = () => {
+  const submit = async () => {
     if (!target || !plan || !admin) return;
-    const r = purchase(target, plan.id, {
-      method,
-      couponCode: coupon || undefined,
-      pending,
-      byUserId: admin.id,
-    });
-    toastResult(r.ok ? { ok: true, message: pending ? "Venta registrada como pendiente de pago." : "Venta registrada y paquete activado." } : r);
+    const r = await toastDone(
+      purchase(target, plan.id, {
+        method,
+        couponCode: coupon || undefined,
+        pending,
+        byUserId: admin.id,
+      }),
+      pending ? "Venta registrada como pendiente de pago." : "Venta registrada y paquete activado.",
+    );
     if (r.ok) {
       setCoupon("");
       setPending(false);
