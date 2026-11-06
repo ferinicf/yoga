@@ -76,14 +76,20 @@ export function createSeed(now = new Date()): DB {
     "Mariana López", "Carlos Méndez", "Valeria Torres", "Jorge Navarro", "Daniela Ruiz", "Andrea Flores",
     "Ricardo Vega", "Paula Jiménez", "Fernanda Silva", "Emilio Rojas", "Camila Ortiz", "Natalia Cruz",
     "Pablo Aguilar", "Lucía Morales", "Sebastián Ramos", "Regina Castillo", "Iván Domínguez", "Ximena Paredes",
-    "Héctor Salinas", "Renata Ibarra", "Tomás Fuentes", "Alejandra Peña",
+    "Héctor Salinas", "Renata Ibarra", "Gabriela Lara", "Mauricio Estrada", "Sofía Cárdenas", "Diana Villalobos",
+    "Rodrigo Treviño", "Elena Zamora", "Arturo Benítez", "Mónica Garza", "Javier Olvera", "Isabel Robles",
+    "Tomás Fuentes", "Alejandra Peña",
   ];
+  // Más alumnos generados para que el demo se vea como un estudio con movimiento.
+  const firsts = ["Ana Sofía", "Luis", "María José", "Diego", "Karla", "Óscar", "Paola", "Raúl", "Silvia", "Andrés"];
+  const lasts = ["Guzmán", "Reyes", "Soto", "Mejía", "Campos", "Luna", "Ávila", "Cortés", "Delgado", "Pineda"];
+  for (let i = 0; i < 30; i++) studentNames.splice(studentNames.length - 2, 0, `${firsts[i % 10]} ${lasts[(i * 3 + Math.floor(i / 10)) % 10]}`);
   studentNames.forEach((name, i) => {
-    const first = name.split(" ")[0].toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const slug = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, ".");
     users.push({
       id: `u_s${i + 1}`,
       name,
-      email: `${first}@demo.mx`,
+      email: `${slug}@demo.mx`,
       phone: `55 3000 ${String(i + 1).padStart(4, "0")}`,
       role: "student",
       code: String(3001 + i),
@@ -161,23 +167,23 @@ export function createSeed(now = new Date()): DB {
     m.creditsUsed = m.credits ?? 0;
   });
 
-  // Membresías vigentes (20 de 22 alumnos; 2 sin paquete para probar la compra).
-  students.slice(0, 20).forEach((u, i) => {
-    const p = i === 3 ? plans.find((x) => x.id === "p_pre")! : i % 4 === 0 ? plans[5] : pick([plans[2], plans[3], plans[3], plans[4]]);
+  // Membresías vigentes para todos menos los 3 últimos (uno con pago pendiente y dos sin paquete).
+  students.slice(0, students.length - 3).forEach((u, i) => {
+    const p = i === 3 ? plans.find((x) => x.id === "p_pre")! : i % 3 === 0 ? plans[5] : pick([plans[3], plans[4], plans[4], plans[2]]);
     sell(u, p, subDays(now, 3 + Math.floor(rand() * 18)), pick(methods));
   });
   // Un pago pendiente en recepción.
-  sell(students[20], plans[2], subDays(now, 1), "efectivo", "pending");
+  sell(students[students.length - 3], plans[2], subDays(now, 1), "efectivo", "pending");
 
   const spotsFor = (s: Session) => roomSpots(rooms.find((r) => r.id === s.roomId)!);
   // Cada alumno practica como máximo una vez al día.
   const busy = new Set<string>();
 
-  for (const s of sessions) {
+  for (const s of [...sessions].sort(() => rand() - 0.5)) {
     const start = new Date(s.startsAt);
     const past = start < now;
     const daysAhead = (start.getTime() - now.getTime()) / 864e5;
-    if (daysAhead > 6) continue;
+    if (daysAhead > 6 || daysAhead < -10) continue;
     const fill = past ? 0.45 + rand() * 0.5 : Math.max(0, 0.95 - daysAhead * 0.12 + (rand() - 0.5) * 0.3);
     const target = Math.min(s.capacity, Math.round(s.capacity * fill));
     const spots = [...spotsFor(s)].sort(() => rand() - 0.5);

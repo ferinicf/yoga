@@ -317,15 +317,15 @@ export function AttendanceList({ session, staffId }: { session: Session; staffId
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-2xl bg-bg p-3">
+        <div className="rounded-2xl border border-line bg-surface p-3">
           <p className="text-2xl font-semibold tabular-nums">{enrolled}</p>
           <p className="text-xs text-muted">Inscritos</p>
         </div>
-        <div className="rounded-2xl bg-bg p-3">
+        <div className="rounded-2xl border border-line bg-surface p-3">
           <p className="text-2xl font-semibold tabular-nums">{present}</p>
           <p className="text-xs text-muted">Check-in</p>
         </div>
-        <div className="rounded-2xl bg-bg p-3">
+        <div className="rounded-2xl border border-line bg-surface p-3">
           <p className="text-2xl font-semibold tabular-nums">{session.capacity - enrolled}</p>
           <p className="text-xs text-muted">Libres</p>
         </div>

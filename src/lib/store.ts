@@ -33,7 +33,7 @@ import {
   planPurchases,
   waitlist,
 } from "./rules";
-import { uid } from "./utils";
+import { roomSpots, uid } from "./utils";
 
 export type Result = { ok: true; message: string; id?: string } | { ok: false; message: string };
 
@@ -179,10 +179,15 @@ export const useStore = create<State>()(
         setAttendance: (reservationId, status) =>
           mutate((d) => {
             const r = d.reservations.find((x) => x.id === reservationId);
-            if (r && OCCUPYING.includes(r.status)) {
-              r.status = status;
-              r.updatedAt = now();
+            if (!r || !OCCUPYING.includes(r.status) || r.status === status) return;
+            // Sin penalización por inasistencia, marcar falta devuelve el crédito (y quitarla lo vuelve a cobrar).
+            if (!d.settings.noShowPenalty && r.membershipId) {
+              const m = d.memberships.find((mm) => mm.id === r.membershipId);
+              if (m && status === "no_show") m.creditsUsed = Math.max(0, m.creditsUsed - 1);
+              if (m && r.status === "no_show") m.creditsUsed += 1;
             }
+            r.status = status;
+            r.updatedAt = now();
           }),
 
         checkInByCode: (sessionId, code) => {
@@ -374,8 +379,23 @@ export const useStore = create<State>()(
         upsertSession: (s) =>
           mutate((d) => {
             const i = d.sessions.findIndex((y) => y.id === s.id);
+            const prevRoom = i >= 0 ? d.sessions[i].roomId : s.roomId;
             if (i >= 0) d.sessions[i] = { ...s, detached: s.templateId ? true : s.detached };
             else d.sessions.push(s);
+            // Si cambió el salón, conserva los lugares que existan en el nuevo y reasigna el resto.
+            if (prevRoom !== s.roomId) {
+              const room = d.rooms.find((r) => r.id === s.roomId);
+              const valid = room ? roomSpots(room) : [];
+              const res = d.reservations.filter((r) => r.sessionId === s.id && OCCUPYING.includes(r.status) && r.spot);
+              const used = new Set<string>();
+              const keep = res.filter((r) => valid.includes(r.spot!) && !used.has(r.spot!) && used.add(r.spot!));
+              for (const r of res) {
+                if (keep.includes(r)) continue;
+                r.spot = valid.find((x) => !used.has(x));
+                if (r.spot) used.add(r.spot);
+                r.updatedAt = now();
+              }
+            }
           }),
 
         cancelSession: (id) =>
