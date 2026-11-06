@@ -6,6 +6,10 @@ import type { ClassTemplate } from "@/lib/types";
 import { fmt, roomSpots, uid, WEEKDAYS } from "@/lib/utils";
 import { toast, toastDone } from "@/components/toast";
 import { Button, Field, Input, Modal, Segmented, Select } from "@/components/ui";
+import { NumberInput } from "@/components/admin/number-input";
+
+/** "todos los lunes", "todos los sábados"… (índice 0 = domingo). */
+const WEEKDAYS_PLURAL = ["domingos", "lunes", "martes", "miércoles", "jueves", "viernes", "sábados"];
 
 /** Crear clase recurrente (plantilla semanal) o una clase única; también edita plantillas. */
 export function ClassFormModal({
@@ -43,7 +47,11 @@ export function ClassFormModal({
 
   const save = async () => {
     if (!disciplineId || !teacherId || !roomId) return toast("Completa disciplina, profesor y salón.", false);
-    const cap = Math.max(1, Math.min(capacity, db.settings.spotSelection ? maxSpots : 999));
+    if (!/^\d{2}:\d{2}$/.test(time)) return toast("Elige la hora de la clase.", false);
+    if (duration < 15) return toast("La duración debe ser de al menos 15 minutos.", false);
+    if (capacity < 1) return toast("El cupo debe ser de al menos 1 lugar.", false);
+    if (db.settings.spotSelection && capacity > maxSpots)
+      return toast(`El salón ${room?.name ?? ""} tiene ${maxSpots} lugares; el cupo no puede ser mayor.`, false);
     let r: { ok: boolean };
     if (template || mode === "recurring") {
       r = await toastDone(upsertTemplate({
@@ -54,13 +62,15 @@ export function ClassFormModal({
         weekday,
         startTime: time,
         durationMin: duration,
-        capacity: cap,
+        capacity,
         active: true,
-      }), template ? "Horario recurrente actualizado." : `Clase agregada todos los ${WEEKDAYS[weekday].toLowerCase()} a las ${time}.`);
+      }), template ? "Horario recurrente actualizado." : `Clase agregada todos los ${WEEKDAYS_PLURAL[weekday]} a las ${time}.`);
     } else {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return toast("Elige la fecha de la clase.", false);
       const [h, m] = time.split(":").map(Number);
       const [y, mo, d] = date.split("-").map(Number);
       const start = new Date(y, mo - 1, d, h, m);
+      if (start < new Date()) return toast("Esa fecha y hora ya pasaron. Elige una fecha futura.", false);
       r = await toastDone(upsertSession({
         id: uid("ses"),
         disciplineId,
@@ -68,7 +78,7 @@ export function ClassFormModal({
         roomId,
         startsAt: start.toISOString(),
         durationMin: duration,
-        capacity: cap,
+        capacity,
         status: "scheduled",
       }), "Clase única creada.");
     }
@@ -110,7 +120,7 @@ export function ClassFormModal({
             </Field>
           ) : (
             <Field label="Fecha">
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <Input type="date" min={fmt(new Date(), "yyyy-MM-dd")} value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
           )}
           <Field label="Hora">
@@ -160,10 +170,10 @@ export function ClassFormModal({
             </Select>
           </Field>
           <Field label="Duración (min)" className="col-span-3 sm:col-span-1">
-            <Input type="number" min={15} step={5} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
+            <NumberInput min={15} step={5} value={duration} onChange={setDuration} />
           </Field>
           <Field label="Cupo" hint={db.settings.spotSelection ? `Máx. ${maxSpots} lugares` : undefined} className="col-span-3 sm:col-span-1">
-            <Input type="number" min={1} max={maxSpots} value={capacity} onChange={(e) => setCapacity(Number(e.target.value))} />
+            <NumberInput min={1} max={db.settings.spotSelection ? maxSpots : undefined} value={capacity} onChange={setCapacity} />
           </Field>
         </div>
         {(template || mode === "recurring") && (

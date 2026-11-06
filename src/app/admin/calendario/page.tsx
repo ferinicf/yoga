@@ -92,13 +92,15 @@ export default function CalendarPage() {
                     key={d.toISOString()}
                     onClick={() => setDay(d)}
                     className={cn(
-                      "flex min-w-14 flex-1 flex-col items-center rounded-2xl border px-2 py-2 transition",
+                      "flex min-w-14 flex-1 flex-col items-center rounded-2xl border px-1 py-2 transition",
                       sel ? "border-brand bg-brand text-brand-ink" : "border-line bg-surface",
                     )}
                   >
                     <span className="text-xs">{WEEKDAYS_SHORT[d.getDay()]}</span>
                     <span className="text-lg font-semibold">{d.getDate()}</span>
-                    <span className={cn("text-[10px]", sel ? "opacity-80" : "text-muted")}>{n} clases</span>
+                    <span className={cn("whitespace-nowrap text-[10px]", sel ? "opacity-80" : "text-muted")}>
+                      {n} {n === 1 ? "clase" : "clases"}
+                    </span>
                   </button>
                 );
               })}
@@ -183,7 +185,7 @@ export default function CalendarPage() {
                             <span className="tabular-nums">{t.startTime}</span> · {disc?.name}
                           </p>
                           <p className="truncate text-xs text-muted">
-                            {teacher?.name} · {room?.name} · {t.capacity} lugares
+                            {teacher?.name} · {room?.name} · {t.capacity} {t.capacity === 1 ? "lugar" : "lugares"}
                           </p>
                         </div>
                         {!t.active && <Badge>Inactiva</Badge>}

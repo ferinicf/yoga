@@ -47,7 +47,6 @@ const toSettings = (r: Row): Settings => ({
   allowPayAtStudio: r.allow_pay_at_studio,
   noShowPenalty: r.no_show_penalty,
   currency: "MXN",
-  adminEmails: r.admin_emails ?? [],
 });
 
 const toUser = (r: Row): User => ({
@@ -63,6 +62,20 @@ const toUser = (r: Row): User => ({
   birthday: r.birthday ?? undefined,
   active: r.active,
   createdAt: r.created_at,
+});
+
+/** Ficha pública del personal (staff_directory): solo nombre, rol, color y bio. */
+const toPublicUser = (r: Row): User => ({
+  id: r.id,
+  name: r.name,
+  email: "",
+  phone: "",
+  role: r.role,
+  code: "",
+  color: r.color,
+  bio: r.bio ?? undefined,
+  active: true,
+  createdAt: "",
 });
 
 const toDiscipline = (r: Row): Discipline => ({
@@ -190,26 +203,49 @@ export async function loadAll(): Promise<{ db: DB; currentUserId: string | null 
   const from = subDays(new Date(), 120).toISOString();
   const to = addDays(new Date(), 60).toISOString();
 
-  const [settings, profiles, disciplines, rooms, templates, sessions, plans, coupons, memberships, sales, reservations, stats] =
-    await Promise.all([
-      sb.from("settings").select("*").eq("id", 1).single(),
-      all(() => sb.from("profiles").select("*").order("name")),
-      all(() => sb.from("disciplines").select("*").order("name")),
-      all(() => sb.from("rooms").select("*").order("name")),
-      all(() => sb.from("class_templates").select("*")),
-      all(() => sb.from("sessions").select("*").gte("starts_at", from).lte("starts_at", to).order("starts_at")),
-      all(() => sb.from("plans").select("*").order("price")),
-      all(() => sb.from("coupons").select("*").order("code")),
-      all(() => sb.from("memberships").select("*").order("created_at")),
-      all(() => sb.from("sales").select("*").order("created_at")),
-      all(() =>
-        sb.from("reservations").select("*, sessions!inner(starts_at)").gte("sessions.starts_at", from).order("created_at"),
-      ),
-      sb.rpc("session_stats", { p_from: from, p_to: to }),
-    ]);
+  const [
+    settings,
+    privateSettings,
+    profiles,
+    directory,
+    disciplines,
+    rooms,
+    templates,
+    sessions,
+    plans,
+    coupons,
+    memberships,
+    sales,
+    reservations,
+    stats,
+  ] = await Promise.all([
+    sb.from("settings").select("*").eq("id", 1).single(),
+    // Correos de administradores: solo los ve un admin (RLS); para los demás no hay fila.
+    sb.from("private_settings").select("admin_emails").eq("id", 1).maybeSingle(),
+    // RLS: un alumno solo recibe su propio perfil; el personal ve a todos.
+    all(() => sb.from("profiles").select("*").order("name")),
+    // Directorio público del personal (nombre, rol, color y bio) para mostrar profesores.
+    sb.rpc("staff_directory"),
+    all(() => sb.from("disciplines").select("*").order("name")),
+    all(() => sb.from("rooms").select("*").order("name")),
+    all(() => sb.from("class_templates").select("*")),
+    all(() => sb.from("sessions").select("*").gte("starts_at", from).lte("starts_at", to).order("starts_at")),
+    all(() => sb.from("plans").select("*").order("price")),
+    all(() => sb.from("coupons").select("*").order("code")),
+    all(() => sb.from("memberships").select("*").order("created_at")),
+    all(() => sb.from("sales").select("*").order("created_at")),
+    all(() =>
+      sb.from("reservations").select("*, sessions!inner(starts_at)").gte("sessions.starts_at", from).order("created_at"),
+    ),
+    sb.rpc("session_stats", { p_from: from, p_to: to }),
+  ]);
   if (settings.error) throw settings.error;
 
   const users = profiles.map(toUser);
+  for (const d of (directory.data as Row[] | null) ?? []) {
+    if (!users.some((u) => u.id === d.id)) users.push(toPublicUser(d));
+  }
+  users.sort((a, b) => a.name.localeCompare(b.name, "es"));
   const me = auth.user ? profiles.find((p) => p.auth_id === auth.user!.id) : undefined;
   const staff = me && (me.role === "admin" || me.role === "teacher");
   const mems = memberships.map(toMembership);
@@ -238,7 +274,7 @@ export async function loadAll(): Promise<{ db: DB; currentUserId: string | null 
     currentUserId: me?.id ?? null,
     db: {
       version: 1,
-      settings: toSettings(settings.data),
+      settings: { ...toSettings(settings.data), adminEmails: (privateSettings.data?.admin_emails as string[] | undefined) ?? [] },
       users,
       disciplines: disciplines.map(toDiscipline),
       rooms: rooms.map(toRoom),
@@ -371,7 +407,8 @@ export const live = {
       "Cupón guardado.",
     ),
 
-  updateSettings: (s: Partial<Settings>) => {
+  updateSettings: async (s: Partial<Settings>): Promise<Result> => {
+    const { adminEmails, ...rest } = s;
     const map: Record<string, string> = {
       studioName: "studio_name",
       tagline: "tagline",
@@ -389,11 +426,22 @@ export const live = {
       allowGuests: "allow_guests",
       allowPayAtStudio: "allow_pay_at_studio",
       noShowPenalty: "no_show_penalty",
-      adminEmails: "admin_emails",
     };
     const row: Row = {};
-    for (const [k, v] of Object.entries(s)) if (map[k]) row[map[k]] = v;
-    return write(supabase().from("settings").update(row).eq("id", 1), "Configuración guardada.");
+    for (const [k, v] of Object.entries(rest)) if (map[k]) row[map[k]] = v;
+    if (Object.keys(row).length) {
+      const r = await write(supabase().from("settings").update(row).eq("id", 1), "Configuración guardada.");
+      if (!r.ok) return r;
+    }
+    // Los correos de administradores viven aparte para que nadie más los pueda leer.
+    if (adminEmails) {
+      const r = await write(
+        supabase().from("private_settings").upsert({ id: 1, admin_emails: adminEmails }),
+        "Configuración guardada.",
+      );
+      if (!r.ok) return r;
+    }
+    return { ok: true, message: "Configuración guardada." };
   },
 
   upsertUser: (u: User, self: boolean) =>

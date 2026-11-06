@@ -7,8 +7,8 @@ import { LogOut } from "lucide-react";
 import { useCurrentUser, useDB, useStore } from "@/lib/store";
 import { creditsLeft } from "@/lib/rules";
 import { fmt, formatMoney, PAYMENT_LABEL } from "@/lib/utils";
-import { toastResult } from "@/components/toast";
-import { Avatar, Badge, Button, Card, Field, Input, PageHeader } from "@/components/ui";
+import { toast, toastResult } from "@/components/toast";
+import { Avatar, Badge, Button, Card, Field, Input, PageHeader, phoneError, phoneInputProps } from "@/components/ui";
 
 export default function ProfilePage() {
   const db = useDB();
@@ -18,6 +18,29 @@ export default function ProfilePage() {
   const isLive = useStore((s) => s.mode) === "live";
   const router = useRouter();
   const [form, setForm] = useState({ name: user.name, email: user.email, phone: user.phone, birthday: user.birthday ?? "" });
+  const [busy, setBusy] = useState(false);
+  const today = fmt(new Date(), "yyyy-MM-dd");
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = form.name.trim().replace(/\s+/g, " ");
+    if (!name) return toast("Escribe tu nombre.", false);
+    // En modo real el correo es el de la cuenta (no se cambia aquí); en el demo se valida como en el admin.
+    const email = isLive ? user.email : form.email.trim().toLowerCase();
+    if (!isLive) {
+      if (!/^\S+@\S+\.\S+$/.test(email)) return toast("Escribe un correo válido.", false);
+      if (db.users.some((u) => u.id !== user.id && u.email.trim().toLowerCase() === email))
+        return toast("Ya existe una persona con ese correo.", false);
+    }
+    const phoneMsg = phoneError(form.phone);
+    if (phoneMsg) return toast(phoneMsg, false);
+    if (form.birthday && form.birthday > today) return toast("Tu cumpleaños no puede ser una fecha futura.", false);
+    const next = { name, email, phone: form.phone.trim(), birthday: form.birthday };
+    setBusy(true);
+    const r = await toastResult(upsertUser({ ...user, ...next, birthday: next.birthday || undefined }));
+    setBusy(false);
+    if (r.ok) setForm(next);
+  };
 
   const mems = db.memberships
     .filter((m) => m.userId === user.id)
@@ -33,22 +56,17 @@ export default function ProfilePage() {
             <Avatar name={user.name} color={user.color} size={64} />
             <div>
               <p className="text-lg font-semibold">{user.name}</p>
-              <p className="text-sm text-muted">Alumno desde {fmt(user.createdAt, "MMMM yyyy")}</p>
+              <p className="text-sm text-muted">Miembro desde {fmt(user.createdAt, "MMMM 'de' yyyy")}</p>
             </div>
           </div>
-          <form
-            className="grid gap-4 md:grid-cols-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              toastResult(upsertUser({ ...user, ...form }));
-            }}
-          >
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={save}>
             <Field label="Nombre">
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required autoComplete="name" />
             </Field>
-            <Field label="Correo">
+            <Field label="Correo" hint={isLive ? "Es el correo con el que inicias sesión. Para cambiarlo, pídelo en recepción." : undefined}>
               <Input
                 type="email"
+                autoComplete="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
@@ -57,13 +75,15 @@ export default function ProfilePage() {
               />
             </Field>
             <Field label="Teléfono">
-              <Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <Input {...phoneInputProps} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             </Field>
             <Field label="Cumpleaños">
-              <Input type="date" value={form.birthday} onChange={(e) => setForm({ ...form, birthday: e.target.value })} />
+              <Input type="date" max={today} value={form.birthday} onChange={(e) => setForm({ ...form, birthday: e.target.value })} />
             </Field>
             <div className="flex gap-2 md:col-span-2">
-              <Button type="submit">Guardar cambios</Button>
+              <Button type="submit" disabled={busy}>
+                Guardar cambios
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -129,7 +149,8 @@ export default function ProfilePage() {
               <div>
                 <p className="font-medium">{s.concept}</p>
                 <p className="text-muted">
-                  {fmt(s.createdAt, "d MMM yyyy")} · {PAYMENT_LABEL[s.method]}
+                  {/* Una compra apartada aún no tiene forma de pago: se paga en recepción. */}
+                  {fmt(s.createdAt, "d MMM yyyy")} · {s.status === "pending" ? "Pago en recepción" : PAYMENT_LABEL[s.method]}
                 </p>
               </div>
               <div className="text-right">

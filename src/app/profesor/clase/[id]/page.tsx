@@ -6,7 +6,7 @@ import { ArrowLeft, Clock, MapPin } from "lucide-react";
 import { useCurrentUser, useDB } from "@/lib/store";
 import { endTime, longDay, timeOf } from "@/lib/utils";
 import { AttendanceList, SpotPicker } from "@/components/domain";
-import { Badge, Card, Empty } from "@/components/ui";
+import { Badge, Card, Empty, buttonClass } from "@/components/ui";
 
 export default function TeacherClassPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,14 +15,23 @@ export default function TeacherClassPage() {
   const session = db.sessions.find((s) => s.id === id);
 
   if (!session || session.teacherId !== user.id) {
-    return <Empty title="Clase no encontrada" action={<Link href="/profesor" className="text-brand">Volver</Link>} />;
+    return (
+      <Empty
+        title="Clase no encontrada"
+        action={
+          <Link href="/profesor" className={buttonClass({ variant: "outline" })}>
+            Volver a mis clases
+          </Link>
+        }
+      />
+    );
   }
   const d = db.disciplines.find((x) => x.id === session.disciplineId);
   const room = db.rooms.find((x) => x.id === session.roomId);
 
   return (
     <div className="space-y-5">
-      <Link href="/profesor" className="inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link href="/profesor" className="-ml-1 inline-flex min-h-10 items-center gap-1 px-1 text-sm text-muted hover:text-ink">
         <ArrowLeft size={16} /> Mis clases
       </Link>
       <div className="flex flex-wrap items-start justify-between gap-3">

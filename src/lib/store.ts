@@ -8,7 +8,7 @@
  */
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { addDays, subDays } from "date-fns";
+import { addDays, format, subDays } from "date-fns";
 import type {
   ClassTemplate,
   Coupon,
@@ -24,14 +24,18 @@ import type {
 } from "./types";
 import { createSeed, DB_VERSION, generateSessionsForTemplates } from "./seed";
 import {
+  cancelMessage,
   canCancelWithRefund,
+  checkAttendance,
   checkBooking,
   couponDiscount,
   freeSpots,
   occupied,
   OCCUPYING,
+  pendingPurchase,
   pickMembership,
   planPurchases,
+  profileError,
   waitlist,
 } from "./rules";
 import { roomSpots, uid } from "./utils";
@@ -47,7 +51,7 @@ type Res = Result;
 interface DemoActions {
   book: (sessionId: string, userId: string, opts?: { spot?: string; guestName?: string; staff?: boolean }) => Res;
   cancelReservation: (reservationId: string, opts?: { staff?: boolean; refund?: boolean }) => Res;
-  setAttendance: (reservationId: string, status: "attended" | "no_show" | "booked") => void;
+  setAttendance: (reservationId: string, status: "attended" | "no_show" | "booked") => Res;
   checkInByCode: (sessionId: string, code: string) => Res;
   purchase: (
     userId: string,
@@ -56,7 +60,7 @@ interface DemoActions {
   ) => Res;
   confirmSale: (saleId: string, method?: PaymentMethod) => void;
   refundSale: (saleId: string) => void;
-  adjustCredits: (membershipId: string, delta: number) => void;
+  adjustCredits: (membershipId: string, delta: number) => Res;
   extendMembership: (membershipId: string, days: number) => void;
   upsertDiscipline: (d: Discipline) => void;
   upsertRoom: (r: Room) => void;
@@ -67,7 +71,7 @@ interface DemoActions {
   cancelSession: (id: string) => void;
   restoreSession: (id: string) => void;
   upsertPlan: (p: Plan) => void;
-  upsertUser: (u: User) => void;
+  upsertUser: (u: User) => Res;
   upsertCoupon: (c: Coupon) => void;
   updateSettings: (s: Partial<Settings>) => void;
   ensureSessions: () => void;
@@ -109,9 +113,11 @@ export const useStore = create<State>()(
         const session = db.sessions.find((s) => s.id === sessionId);
         if (!session || !db.settings.waitlistEnabled) return;
         while (occupied(db, sessionId) < session.capacity) {
-          const next = waitlist(db, sessionId).find((r) => pickMembership(db, r.userId, session));
+          const next = waitlist(db, sessionId).find((r) =>
+            pickMembership(db, r.userId, session, { guest: !!r.guestName }),
+          );
           if (!next) return;
-          const m = pickMembership(db, next.userId, session)!;
+          const m = pickMembership(db, next.userId, session, { guest: !!next.guestName })!;
           m.creditsUsed += 1;
           next.status = "booked";
           next.membershipId = m.id;
@@ -127,13 +133,16 @@ export const useStore = create<State>()(
           const session = db.sessions.find((s) => s.id === sessionId);
           const user = db.users.find((u) => u.id === userId);
           if (!session || !user) return { ok: false, message: "Clase no encontrada." };
-          const check = checkBooking(db, user, session, { guest: !!opts.guestName, staff: opts.staff });
+          const isGuest = opts.guestName !== undefined;
+          const guestName = opts.guestName?.trim().replace(/\s+/g, " ");
+          const check = checkBooking(db, user, session, { guestName: opts.guestName, staff: opts.staff });
           if (!check.ok) return { ok: false, message: check.reason };
           if (!check.full && db.settings.spotSelection && opts.spot) {
             if (!freeSpots(db, session).includes(opts.spot))
               return { ok: false, message: "Ese lugar ya fue tomado, elige otro." };
           }
           const id = uid("res");
+          let spot: string | undefined;
           mutate((d) => {
             const s = d.sessions.find((x) => x.id === sessionId)!;
             const r: Reservation = {
@@ -141,7 +150,7 @@ export const useStore = create<State>()(
               sessionId,
               userId,
               status: check.full ? "waitlist" : "booked",
-              guestName: opts.guestName,
+              guestName: isGuest ? guestName : undefined,
               createdAt: now(),
               updatedAt: now(),
             };
@@ -150,23 +159,42 @@ export const useStore = create<State>()(
               m.creditsUsed += 1;
               r.membershipId = m.id;
               r.spot = d.settings.spotSelection ? opts.spot ?? freeSpots(d, s)[0] : undefined;
+              spot = r.spot;
             }
             d.reservations.push(r);
           });
-          return check.full
-            ? { ok: true, id, message: "La clase está llena. Te agregamos a la lista de espera." }
-            : { ok: true, id, message: "¡Reservación confirmada!" };
+          // Mismos textos que book_session (modo real).
+          if (check.full) {
+            const who = isGuest ? guestName : opts.staff ? user.name : undefined;
+            return {
+              ok: true,
+              id,
+              message: who
+                ? `La clase está llena. ${who} quedó en lista de espera.`
+                : "La clase está llena. Te agregamos a la lista de espera.",
+            };
+          }
+          if (isGuest)
+            return { ok: true, id, message: `¡Listo! Reservamos un lugar para ${guestName}${spot ? ` (lugar ${spot})` : ""}.` };
+          return { ok: true, id, message: opts.staff ? `${user.name} quedó inscrito/a en la clase.` : "¡Reservación confirmada!" };
         },
 
         cancelReservation: (reservationId, opts = {}) => {
           const db = get().db;
           const r = db.reservations.find((x) => x.id === reservationId);
           if (!r) return { ok: false, message: "Reservación no encontrada." };
+          if (r.status === "cancelled") return { ok: false, message: "Ya estaba cancelada." };
           const session = db.sessions.find((s) => s.id === r.sessionId)!;
           if (!opts.staff && new Date(session.startsAt) <= new Date())
             return { ok: false, message: "La clase ya comenzó; no se puede cancelar." };
           const wasWaitlist = r.status === "waitlist";
-          const refund = wasWaitlist ? false : opts.refund ?? canCancelWithRefund(db, session);
+          // Solo el personal puede decidir el reembolso; para el alumno depende de las horas que faltan.
+          const refund = wasWaitlist
+            ? false
+            : opts.staff && opts.refund !== undefined
+              ? opts.refund
+              : canCancelWithRefund(db, session);
+          const membership = r.membershipId ? db.memberships.find((m) => m.id === r.membershipId) : undefined;
           mutate((d) => {
             const x = d.reservations.find((y) => y.id === reservationId)!;
             if (refund && x.membershipId) {
@@ -178,28 +206,50 @@ export const useStore = create<State>()(
             x.updatedAt = now();
             promoteWaitlist(d, x.sessionId);
           });
-          if (wasWaitlist) return { ok: true, message: "Saliste de la lista de espera." };
-          return refund
-            ? { ok: true, message: "Reservación cancelada. Te devolvimos tu crédito." }
-            : { ok: true, message: `Cancelación tardía (menos de ${db.settings.cancelHours} h): el crédito no se reembolsa.` };
+          return {
+            ok: true,
+            message: cancelMessage({
+              staff: opts.staff,
+              waitlist: wasWaitlist,
+              refund,
+              usesCredit: !!membership && membership.credits !== null,
+              guestName: r.guestName,
+              ownerName: db.users.find((u) => u.id === r.userId)?.name ?? "el alumno",
+              cancelHours: db.settings.cancelHours,
+            }),
+          };
         },
 
-        setAttendance: (reservationId, status) =>
+        setAttendance: (reservationId, status) => {
+          const db = get().db;
+          const r = db.reservations.find((x) => x.id === reservationId);
+          if (!r || !OCCUPYING.includes(r.status) || r.status === status) return { ok: true, message: "Sin cambios." };
+          // Marcar asistencia o falta solo desde 60 min antes de la clase (quitar la marca, siempre).
+          const session = db.sessions.find((s) => s.id === r.sessionId);
+          if (status !== "booked" && session) {
+            const can = checkAttendance(session);
+            if (!can.ok) return { ok: false, message: can.reason };
+          }
           mutate((d) => {
-            const r = d.reservations.find((x) => x.id === reservationId);
-            if (!r || !OCCUPYING.includes(r.status) || r.status === status) return;
+            const x = d.reservations.find((y) => y.id === reservationId)!;
             // Sin penalización por inasistencia, marcar falta devuelve el crédito (y quitarla lo vuelve a cobrar).
-            if (!d.settings.noShowPenalty && r.membershipId) {
-              const m = d.memberships.find((mm) => mm.id === r.membershipId);
+            if (!d.settings.noShowPenalty && x.membershipId) {
+              const m = d.memberships.find((mm) => mm.id === x.membershipId);
               if (m && status === "no_show") m.creditsUsed = Math.max(0, m.creditsUsed - 1);
-              if (m && r.status === "no_show") m.creditsUsed += 1;
+              if (m && x.status === "no_show") m.creditsUsed += 1;
             }
-            r.status = status;
-            r.updatedAt = now();
-          }),
+            x.status = status;
+            x.updatedAt = now();
+          });
+          return { ok: true, message: "Asistencia actualizada." };
+        },
 
         checkInByCode: (sessionId, code) => {
           const db = get().db;
+          const session = db.sessions.find((s) => s.id === sessionId);
+          if (!session) return { ok: false, message: "Clase no encontrada." };
+          const can = checkAttendance(session);
+          if (!can.ok) return { ok: false, message: can.reason };
           const user = db.users.find((u) => u.code === code.trim() && u.role === "student");
           if (!user) return { ok: false, message: "No encontramos un alumno con ese código." };
           const r = db.reservations.find(
@@ -209,18 +259,22 @@ export const useStore = create<State>()(
             return { ok: false, message: `${user.name} está en lista de espera, no tiene lugar confirmado.` };
           }
           if (r) {
-            demo.setAttendance(r.id, "attended");
+            const a = demo.setAttendance(r.id, "attended");
+            if (!a.ok) return a;
             return { ok: true, message: `Check-in de ${user.name}${r.spot ? ` · lugar ${r.spot}` : ""}.` };
           }
+          // Sin reservación: se le agrega a la clase (los mensajes de book ya traen su nombre).
           const res = demo.book(sessionId, user.id, { staff: true });
-          if (!res.ok) return { ok: false, message: `${user.name}: ${res.message}` };
+          if (!res.ok) return res;
           const created = get().db.reservations.find((x) => x.id === res.id);
           if (created?.status === "waitlist") {
-            demo.cancelReservation(created.id, { staff: true });
-            return { ok: false, message: "La clase está llena." };
+            mutate((d) => {
+              d.reservations = d.reservations.filter((x) => x.id !== created.id);
+            });
+            return { ok: false, message: `La clase está llena; no se pudo agregar a ${user.name}.` };
           }
           if (res.id) demo.setAttendance(res.id, "attended");
-          return { ok: true, message: `${user.name} agregado/a a la clase y con check-in.` };
+          return { ok: true, message: `${user.name} quedó agregado/a a la clase con check-in.` };
         },
 
         purchase: (userId, planId, opts) => {
@@ -229,6 +283,9 @@ export const useStore = create<State>()(
           if (!plan || !plan.active) return { ok: false, message: "Paquete no disponible." };
           if (plan.maxPerMember !== null && planPurchases(db, userId, planId) >= plan.maxPerMember)
             return { ok: false, message: `Este paquete solo se puede comprar ${plan.maxPerMember} vez.` };
+          // Mismo texto que purchase_plan: el alumno no aparta dos veces el mismo paquete sin pagarlo.
+          if (opts.byUserId === userId && pendingPurchase(db, userId, planId))
+            return { ok: false, message: "Ya tienes este paquete apartado. Págalo en recepción para activarlo." };
           const c = couponDiscount(db, opts.couponCode, plan.price);
           if (c.error) return { ok: false, message: c.error };
           const saleId = uid("sale");
@@ -302,11 +359,19 @@ export const useStore = create<State>()(
             if (m) m.status = "cancelled";
           }),
 
-        adjustCredits: (membershipId, delta) =>
+        adjustCredits: (membershipId, delta) => {
+          // Mismas reglas y textos que adjust_credits (modo real).
+          const m = get().db.memberships.find((x) => x.id === membershipId);
+          if (!m) return { ok: false, message: "Paquete no encontrado." };
+          if (m.credits === null) return { ok: false, message: "Este paquete es ilimitado; no tiene créditos que ajustar." };
+          if (m.credits + delta < m.creditsUsed)
+            return { ok: false, message: "Este paquete ya no tiene créditos disponibles que quitar." };
           mutate((d) => {
-            const m = d.memberships.find((x) => x.id === membershipId);
-            if (m && m.credits !== null) m.credits = Math.max(m.creditsUsed, m.credits + delta);
-          }),
+            const x = d.memberships.find((y) => y.id === membershipId);
+            if (x && x.credits !== null) x.credits += delta;
+          });
+          return { ok: true, message: delta > 0 ? "Crédito agregado." : delta < 0 ? "Crédito retirado." : "Sin cambios." };
+        },
 
         extendMembership: (membershipId, days) =>
           mutate((d) => {
@@ -435,12 +500,17 @@ export const useStore = create<State>()(
             else d.plans.push(x);
           }),
 
-        upsertUser: (x) =>
+        upsertUser: (x) => {
+          // Mismas validaciones que update_my_profile / admin_save_profile (modo real).
+          const err = profileError(get().db, x, format(new Date(), "yyyy-MM-dd"));
+          if (err) return { ok: false, message: err };
           mutate((d) => {
             const i = d.users.findIndex((y) => y.id === x.id);
             if (i >= 0) d.users[i] = x;
             else d.users.push(x);
-          }),
+          });
+          return { ok: true, message: "Guardado." };
+        },
 
         upsertCoupon: (x) =>
           mutate((d) => {

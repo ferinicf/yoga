@@ -1,21 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { addDays, endOfDay, startOfMonth, subMonths } from "date-fns";
 import { AlertCircle, CalendarCheck, CalendarDays, Clock, Gauge, Plus, Users, Wallet } from "lucide-react";
-import { useCurrentUser, useDB, useStore } from "@/lib/store";
+import { useCurrentUser, useDB } from "@/lib/store";
 import { activeStudents, occupied, sessionsOn } from "@/lib/rules";
-import { capitalize, fmt, formatMoney, longDay, PAYMENT_LABEL } from "@/lib/utils";
+import type { Sale } from "@/lib/types";
+import { capitalize, fmt, formatMoney, longDay } from "@/lib/utils";
 import { SessionCard } from "@/components/domain";
-import { toastDone } from "@/components/toast";
 import { Avatar, Button, Card, Empty, PageHeader } from "@/components/ui";
 import { RevenueChart, StatTile } from "@/components/admin/charts";
+import { ConfirmSaleModal, saleMethodLabel } from "@/components/admin/confirm-sale-modal";
 
 export default function AdminDashboard() {
   const db = useDB();
   const me = useCurrentUser();
-  const confirmSale = useStore((s) => s.confirmSale);
+  const [confirming, setConfirming] = useState<Sale | null>(null);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -78,7 +79,7 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <StatTile label="Ingresos del mes" value={formatMoney(stats.month)} delta={stats.delta} deltaLabel="vs. mismos días del mes pasado" icon={<Wallet size={16} />} />
-        <StatTile label="Reservas hoy" value={String(stats.reservasHoy)} hint={`${stats.today.length} clases`} icon={<CalendarCheck size={16} />} />
+        <StatTile label="Reservas hoy" value={String(stats.reservasHoy)} hint={`${stats.today.length} ${stats.today.length === 1 ? "clase" : "clases"}`} icon={<CalendarCheck size={16} />} />
         <StatTile label="Ocupación 7 días" value={`${stats.occPct}%`} hint="Próximas clases" icon={<Gauge size={16} />} />
         <StatTile label="Alumnos activos" value={String(stats.active)} hint="Con paquete vigente" icon={<Users size={16} />} />
         <StatTile
@@ -90,11 +91,11 @@ export default function AdminDashboard() {
         <StatTile label="Vencen en 7 días" value={String(stats.expiring.length)} hint="Membresías" icon={<Clock size={16} />} />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-5">
-        <section className="lg:col-span-3">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
+        <section className="min-w-0 lg:col-span-3">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Clases de hoy</h2>
-            <Link href="/admin/calendario" className="text-sm font-medium text-brand">
+            <Link href="/admin/calendario" className="-my-2 inline-flex min-h-11 items-center pl-3 text-sm font-medium text-brand-text">
               Ver semana
             </Link>
           </div>
@@ -111,7 +112,7 @@ export default function AdminDashboard() {
           )}
         </section>
 
-        <div className="space-y-6 lg:col-span-2">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
           <Card className="p-4">
             <h2 className="font-semibold">Ingresos por mes</h2>
             <p className="mb-4 text-xs text-muted">Ventas pagadas, últimos 6 meses</p>
@@ -121,7 +122,7 @@ export default function AdminDashboard() {
           <Card className="p-4">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="font-semibold">Pagos pendientes</h2>
-              <Link href="/admin/ventas" className="text-sm font-medium text-brand">
+              <Link href="/admin/ventas" className="-my-2 inline-flex min-h-11 items-center pl-3 text-sm font-medium text-brand-text">
                 Ventas
               </Link>
             </div>
@@ -137,15 +138,10 @@ export default function AdminDashboard() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{u?.name}</p>
                         <p className="truncate text-xs text-muted">
-                          {s.concept} · {formatMoney(s.total)} · {PAYMENT_LABEL[s.method]}
+                          {s.concept} · {formatMoney(s.total)} · {saleMethodLabel(s)}
                         </p>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          toastDone(confirmSale(s.id), "Pago confirmado. Paquete activado.");
-                        }}
-                      >
+                      <Button size="sm" className="h-11" onClick={() => setConfirming(s)}>
                         Confirmar
                       </Button>
                     </li>
@@ -183,6 +179,8 @@ export default function AdminDashboard() {
           </Card>
         </div>
       </div>
+
+      {confirming && <ConfirmSaleModal key={confirming.id} sale={confirming} onClose={() => setConfirming(null)} />}
     </div>
   );
 }

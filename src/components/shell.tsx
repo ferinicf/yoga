@@ -59,13 +59,14 @@ export function AppShell({ role, root, nav, children }: { role: Role; root: stri
         href={n.href}
         onClick={() => setDrawer(false)}
         className={cn(
-          "flex items-center gap-3 rounded-xl transition",
-          compact ? "flex-col gap-1 px-1 py-2 text-[11px]" : "px-3 py-2.5 text-sm",
+          "flex items-center rounded-xl transition",
+          compact ? "flex-col gap-1 px-1 py-2 text-[11px]" : "min-h-11 gap-3 px-3 py-2.5 text-sm",
           active ? "bg-brand-soft font-semibold text-brand-strong" : "text-muted hover:bg-black/5 hover:text-ink",
         )}
       >
-        <n.icon size={compact ? 22 : 18} />
-        <span className={cn(compact && "max-w-full truncate")}>{n.label}</span>
+        <n.icon size={compact ? 22 : 18} className="shrink-0" />
+        {/* En el riel angosto la etiqueta puede ocupar 2 líneas ("Clases y / salones") en vez de cortarse. */}
+        <span className={cn(compact && "line-clamp-2 max-w-full break-words text-center leading-tight")}>{n.label}</span>
       </Link>
     );
   };
@@ -80,7 +81,7 @@ export function AppShell({ role, root, nav, children }: { role: Role; root: stri
           </span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto no-scrollbar">{nav.map((n) => sideLink(n, true))}</nav>
-        <button onClick={doLogout} className="mt-2 flex flex-col items-center gap-1 rounded-xl py-2 text-[11px] text-muted hover:bg-black/5">
+        <button onClick={doLogout} className="mt-2 flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl py-2 text-[11px] text-muted hover:bg-black/5">
           <LogOut size={20} />
           Salir
         </button>
@@ -104,7 +105,11 @@ export function AppShell({ role, root, nav, children }: { role: Role; root: stri
             <p className="truncate text-sm font-medium">{user.name}</p>
             <p className="truncate text-xs text-muted">{user.email}</p>
           </div>
-          <button onClick={doLogout} className="rounded-lg p-2 text-muted hover:bg-black/5" aria-label="Cerrar sesión">
+          <button
+            onClick={doLogout}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-black/5"
+            aria-label="Cerrar sesión"
+          >
             <LogOut size={18} />
           </button>
         </div>
@@ -121,11 +126,19 @@ export function AppShell({ role, root, nav, children }: { role: Role; root: stri
               <span className="truncate font-semibold">{settings.studioName}</span>
             </div>
             {hasMore ? (
-              <button onClick={() => setDrawer(true)} className="rounded-lg p-2 hover:bg-black/5" aria-label="Menú">
+              <button
+                onClick={() => setDrawer(true)}
+                className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-black/5"
+                aria-label="Menú"
+              >
                 <Menu size={22} />
               </button>
             ) : (
-              <button onClick={doLogout} className="rounded-lg p-2 text-muted hover:bg-black/5" aria-label="Cerrar sesión">
+              <button
+                onClick={doLogout}
+                className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-black/5"
+                aria-label="Cerrar sesión"
+              >
                 <LogOut size={20} />
               </button>
             )}
@@ -143,7 +156,7 @@ export function AppShell({ role, root, nav, children }: { role: Role; root: stri
                 <Link
                   key={n.href}
                   href={n.href}
-                  className={cn("flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px]", active ? "font-semibold text-brand" : "text-muted")}
+                  className={cn("flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px]", active ? "font-semibold text-brand-text" : "text-muted")}
                 >
                   <n.icon size={22} />
                   {n.label}
@@ -158,7 +171,8 @@ export function AppShell({ role, root, nav, children }: { role: Role; root: stri
       {drawer && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setDrawer(false)} />
-          <div className="animate-sheet pt-safe absolute inset-y-0 right-0 flex w-72 flex-col bg-surface p-4">
+          {/* El área segura (notch y barra de inicio) se suma al margen interno de 16 px. */}
+          <div className="animate-sheet absolute inset-y-0 right-0 flex w-72 flex-col bg-surface px-4 pb-safe-4 pt-safe-4">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar name={user.name} color={user.color} size={36} />
@@ -167,12 +181,16 @@ export function AppShell({ role, root, nav, children }: { role: Role; root: stri
                   <p className="text-xs text-muted">{ROLE_LABEL[role]}</p>
                 </div>
               </div>
-              <button onClick={() => setDrawer(false)} className="rounded-lg p-2 hover:bg-black/5" aria-label="Cerrar">
+              <button
+                onClick={() => setDrawer(false)}
+                className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-black/5"
+                aria-label="Cerrar"
+              >
                 <X size={20} />
               </button>
             </div>
             <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">{nav.map((n) => sideLink(n, false))}</nav>
-            <button onClick={doLogout} className="pb-safe mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted hover:bg-black/5">
+            <button onClick={doLogout} className="mt-2 flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted hover:bg-black/5">
               <LogOut size={18} /> Cerrar sesión
             </button>
           </div>

@@ -6,7 +6,7 @@ import { isSameDay, startOfDay, subDays } from "date-fns";
 import { CalendarX2, ChevronRight } from "lucide-react";
 import { useCurrentUser, useDB } from "@/lib/store";
 import { sessionsOn } from "@/lib/rules";
-import { longDay } from "@/lib/utils";
+import { longDay, timeOf } from "@/lib/utils";
 import { SessionCard } from "@/components/domain";
 import { DayStrip } from "@/components/day-strip";
 import { Card, Empty, PageHeader } from "@/components/ui";
@@ -28,10 +28,13 @@ export default function TeacherHome() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`Hola, ${user.name.split(" ")[0]}`} subtitle={`${weekCount} clases en los próximos 7 días`} />
+      <PageHeader
+        title={`Hola, ${user.name.trim().split(/\s+/)[0]}`}
+        subtitle={`${weekCount} ${weekCount === 1 ? "clase" : "clases"} en los próximos 7 días`}
+      />
 
       {next && (
-        <Link href={`/profesor/clase/${next.id}`}>
+        <Link href={`/profesor/clase/${next.id}`} className="block rounded-2xl">
           <Card className="flex items-center gap-4 border-brand bg-brand-soft p-5">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium uppercase tracking-wide text-brand-strong">
@@ -39,10 +42,10 @@ export default function TeacherHome() {
               </p>
               <p className="mt-1 text-xl font-semibold">{db.disciplines.find((d) => d.id === next.disciplineId)?.name}</p>
               <p className="text-sm text-muted">
-                {longDay(next.startsAt)} · {new Date(next.startsAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}
+                {longDay(next.startsAt)} · {timeOf(next.startsAt)}
               </p>
             </div>
-            <span className="flex items-center gap-1 text-sm font-medium text-brand-strong">
+            <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-brand-strong">
               Pasar lista <ChevronRight size={18} />
             </span>
           </Card>
@@ -62,9 +65,10 @@ export default function TeacherHome() {
         {list.length === 0 ? (
           <Empty icon={<CalendarX2 size={32} />} title="No tienes clases este día" />
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {list.map((s) => (
-              <Link key={s.id} href={`/profesor/clase/${s.id}`}>
+              // block + min-w-0: el enlace es el elemento del grid y no debe estirarse más que la pantalla.
+              <Link key={s.id} href={`/profesor/clase/${s.id}`} className="block min-w-0 rounded-2xl">
                 <SessionCard session={s} right={<ChevronRight className="text-muted" />} />
               </Link>
             ))}

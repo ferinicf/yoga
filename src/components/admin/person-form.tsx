@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useDB, useStore } from "@/lib/store";
 import type { Role, User } from "@/lib/types";
-import { uid } from "@/lib/utils";
+import { fmt, uid } from "@/lib/utils";
 import { toast, toastDone } from "@/components/toast";
-import { Button, Field, Input, Modal, Textarea, Toggle } from "@/components/ui";
+import { Button, Field, Input, Modal, Textarea, Toggle, phoneError, phoneInputProps } from "@/components/ui";
 
 export const PERSON_COLORS = ["#7C9A92", "#C98B6B", "#8E7CC3", "#D4A373", "#6B9AC4", "#B5838D", "#6D8B74", "#E09F7D"];
 
@@ -44,6 +44,7 @@ export function PersonFormModal({
   const [notes, setNotes] = useState(user?.notes ?? "");
   const [color, setColor] = useState(user?.color ?? PERSON_COLORS[db.users.length % PERSON_COLORS.length]);
   const [active, setActive] = useState(user?.active ?? true);
+  const today = fmt(new Date(), "yyyy-MM-dd");
 
   const save = async () => {
     if (!name.trim()) return toast("El nombre es obligatorio.", false);
@@ -51,6 +52,9 @@ export function PersonFormModal({
     if (!/^\S+@\S+\.\S+$/.test(mail)) return toast("Escribe un correo válido.", false);
     if (db.users.some((u) => u.email.toLowerCase() === mail && u.id !== user?.id))
       return toast("Ya existe una persona con ese correo.", false);
+    const phoneMsg = phoneError(phone);
+    if (phoneMsg) return toast(phoneMsg, false);
+    if (birthday && birthday > today) return toast("La fecha de cumpleaños no puede ser futura.", false);
     const id = user?.id ?? uid("u");
     const r = await toastDone(upsertUser({
       id,
@@ -92,12 +96,12 @@ export function PersonFormModal({
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
           </Field>
           <Field label="Teléfono / WhatsApp">
-            <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
+            <Input {...phoneInputProps} value={phone} onChange={(e) => setPhone(e.target.value)} />
           </Field>
         </div>
         {role === "student" && (
           <Field label="Cumpleaños (opcional)">
-            <Input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
+            <Input type="date" max={today} value={birthday} onChange={(e) => setBirthday(e.target.value)} />
           </Field>
         )}
         {role === "teacher" && (

@@ -6,7 +6,7 @@ import { ChevronRight, GraduationCap, ShieldCheck, User as UserIcon } from "luci
 import { useCurrentUser, useDB, useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 import type { Role } from "@/lib/types";
-import { Avatar, Button, Card, Field, Input, Segmented } from "@/components/ui";
+import { Avatar, Button, Card, Field, Input, Segmented, phoneError, phoneInputProps, textLinkClass } from "@/components/ui";
 import { toast } from "@/components/toast";
 
 const HOME: Record<Role, string> = { admin: "/admin", teacher: "/profesor", student: "/alumno" };
@@ -22,7 +22,8 @@ export default function LoginPage() {
   }, [user, router]);
 
   return (
-    <div className="pt-safe pb-safe flex min-h-dvh flex-col items-center justify-center px-4 py-10">
+    // El área segura (notch / barra de inicio) se suma al margen de 40 px arriba y abajo.
+    <div className="flex min-h-dvh flex-col items-center justify-center px-4 pb-safe-10 pt-safe-10">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-brand text-2xl font-bold text-brand-ink">
@@ -70,6 +71,8 @@ function LiveLogin() {
         await refresh();
       } else if (tab === "up") {
         if (!form.name.trim()) return toast("Escribe tu nombre.", false);
+        const phoneMsg = phoneError(form.phone);
+        if (phoneMsg) return toast(phoneMsg, false);
         const { data, error } = await sb.auth.signUp({
           email,
           password: form.password,
@@ -123,7 +126,7 @@ function LiveLogin() {
                     <Input value={form.name} onChange={set("name")} autoComplete="name" required />
                   </Field>
                   <Field label="Teléfono (opcional)">
-                    <Input type="tel" value={form.phone} onChange={set("phone")} autoComplete="tel" />
+                    <Input {...phoneInputProps} value={form.phone} onChange={set("phone")} />
                   </Field>
                 </>
               )}
@@ -148,11 +151,11 @@ function LiveLogin() {
             </form>
             <div className="mt-4 text-center text-sm">
               {tab === "in" ? (
-                <button className="text-muted underline" onClick={() => setTab("reset")}>
+                <button type="button" className={`${textLinkClass} px-2 text-muted underline`} onClick={() => setTab("reset")}>
                   ¿Olvidaste tu contraseña?
                 </button>
               ) : tab === "reset" ? (
-                <button className="text-muted underline" onClick={() => setTab("in")}>
+                <button type="button" className={`${textLinkClass} px-2 text-muted underline`} onClick={() => setTab("in")}>
                   Volver
                 </button>
               ) : null}
@@ -162,7 +165,7 @@ function LiveLogin() {
       </Card>
       <p className="mt-6 text-center text-sm text-muted">
         ¿Solo quieres conocer la app?{" "}
-        <button className="font-medium text-brand underline" onClick={() => setMode("demo")}>
+        <button type="button" className={`${textLinkClass} px-1 font-medium text-brand-text underline`} onClick={() => setMode("demo")}>
           Ver demo con datos de ejemplo
         </button>
       </p>
@@ -229,7 +232,8 @@ function DemoLogin() {
       </Card>
       <p className="mt-6 text-center text-sm text-muted">
         <button
-          className="font-medium text-brand underline"
+          type="button"
+          className={`${textLinkClass} px-2 font-medium text-brand-text underline`}
           onClick={async () => {
             setMode("live");
             await refresh().catch(() => toast("No pudimos conectar con el servidor.", false));

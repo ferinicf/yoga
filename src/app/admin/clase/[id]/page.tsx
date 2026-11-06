@@ -11,6 +11,7 @@ import { endTime, fmt, longDay, roomSpots, timeOf } from "@/lib/utils";
 import { AttendanceList, SpotPicker } from "@/components/domain";
 import { toast, toastDone } from "@/components/toast";
 import { Avatar, Badge, Button, Card, Empty, Field, Input, Modal, Select, Textarea } from "@/components/ui";
+import { NumberInput } from "@/components/admin/number-input";
 
 export default function AdminSessionPage() {
   const { id } = useParams<{ id: string }>();
@@ -84,7 +85,13 @@ export default function AdminSessionPage() {
             <Button
               variant="danger"
               onClick={() => {
-                if (!confirm(`¿Cancelar esta clase? Se cancelarán ${occ} reservación(es) y se devolverán los créditos.`)) return;
+                const detail =
+                  occ === 0
+                    ? "No tiene reservaciones."
+                    : occ === 1
+                      ? "Se cancelará 1 reservación y se devolverá el crédito."
+                      : `Se cancelarán ${occ} reservaciones y se devolverán los créditos.`;
+                if (!confirm(`¿Cancelar esta clase? ${detail}`)) return;
                 toastDone(cancelSession(session.id), "Clase cancelada y créditos devueltos.");
               }}
             >
@@ -146,22 +153,31 @@ function EditSessionModal({ session, onClose }: { session: Session; onClose: () 
   const room = db.rooms.find((r) => r.id === roomId);
   const max = room ? roomSpots(room).length : 999;
 
-  const save = () => {
+  const save = async () => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return toast("Elige fecha y hora.", false);
+    if (duration < 15) return toast("La duración debe ser de al menos 15 minutos.", false);
+    if (capacity < 1) return toast("El cupo debe ser de al menos 1 lugar.", false);
     if (capacity < occ) return toast(`Ya hay ${occ} personas inscritas; el cupo no puede ser menor.`, false);
     if (roomId !== session.roomId && db.settings.spotSelection && occ > max)
       return toast(`El salón ${room?.name} solo tiene ${max} lugares y hay ${occ} inscritos.`, false);
+    if (db.settings.spotSelection && capacity > max && (capacity !== session.capacity || roomId !== session.roomId))
+      return toast(`El salón ${room?.name} tiene ${max} lugares; el cupo no puede ser mayor.`, false);
     const [y, mo, d] = date.split("-").map(Number);
     const [h, m] = time.split(":").map(Number);
-    toastDone(upsertSession({
+    const start = new Date(y, mo - 1, d, h, m);
+    // Solo se avisa si se movió la clase a una fecha pasada (editar notas de una clase ya dada sí se permite).
+    if (+start !== +new Date(session.startsAt) && start < new Date())
+      return toast("Esa fecha y hora ya pasaron. Elige una fecha futura.", false);
+    const r = await toastDone(upsertSession({
       ...session,
-      startsAt: new Date(y, mo - 1, d, h, m).toISOString(),
+      startsAt: start.toISOString(),
       teacherId,
       roomId,
-      capacity: db.settings.spotSelection ? Math.min(capacity, max) : capacity,
+      capacity,
       durationMin: duration,
       notes: notes.trim() || undefined,
     }), "Clase actualizada.");
-    onClose();
+    if (r.ok) onClose();
   };
 
   return (
@@ -206,11 +222,11 @@ function EditSessionModal({ session, onClose }: { session: Session; onClose: () 
               ))}
             </Select>
           </Field>
-          <Field label="Duración" className="col-span-3 sm:col-span-1">
-            <Input type="number" min={15} step={5} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
+          <Field label="Duración (min)" className="col-span-3 sm:col-span-1">
+            <NumberInput min={15} step={5} value={duration} onChange={setDuration} />
           </Field>
           <Field label="Cupo" hint={`Inscritos: ${occ}`} className="col-span-3 sm:col-span-1">
-            <Input type="number" min={occ || 1} max={max} value={capacity} onChange={(e) => setCapacity(Number(e.target.value))} />
+            <NumberInput min={occ || 1} max={db.settings.spotSelection ? max : undefined} value={capacity} onChange={setCapacity} />
           </Field>
         </div>
         <Field label="Notas">

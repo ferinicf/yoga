@@ -3,6 +3,8 @@
 :root {
   --brand: #5b7f6e;
   --brand-ink: #ffffff;
+  /* Marca para texto sobre fondos claros (se oscurece si el color elegido es muy claro). */
+  --brand-text: var(--brand);
   --bg: #f7f5f1;
   --surface: #ffffff;
   --ink: #1f2421;
@@ -13,6 +15,7 @@
 @theme inline {
   --color-brand: var(--brand);
   --color-brand-ink: var(--brand-ink);
+  --color-brand-text: var(--brand-text);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-ink: var(--ink);
@@ -38,17 +41,28 @@ body {
   background: color-mix(in srgb, var(--brand) 12%, white);
 }
 .text-brand-strong {
-  color: color-mix(in srgb, var(--brand) 80%, black);
+  color: color-mix(in srgb, var(--brand-text) 80%, black);
 }
 .ring-brand {
   --tw-ring-color: var(--brand);
 }
 
-.pb-safe {
+/*
+ * Área segura (notch / barra de inicio del iPhone y iPad). Son utilidades de Tailwind (no CSS
+ * suelto) para no anular el padding de p-4, py-3, etc. Con número, el área segura se SUMA al
+ * padding base: pt-safe-4 = 1rem + notch; pb-safe-3 = 0.75rem + barra de inicio.
+ */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pt-safe-* {
+  padding-top: calc(--spacing(--value(number)) + env(safe-area-inset-top));
+}
+@utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
-.pt-safe {
-  padding-top: env(safe-area-inset-top);
+@utility pb-safe-* {
+  padding-bottom: calc(--spacing(--value(number)) + env(safe-area-inset-bottom));
 }
 
 .no-scrollbar::-webkit-scrollbar {

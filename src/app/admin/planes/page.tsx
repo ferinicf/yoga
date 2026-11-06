@@ -7,6 +7,7 @@ import type { Plan } from "@/lib/types";
 import { cn, formatMoney, uid } from "@/lib/utils";
 import { toast, toastDone } from "@/components/toast";
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, Textarea, Toggle } from "@/components/ui";
+import { NumberInput } from "@/components/admin/number-input";
 
 export default function PlansPage() {
   const db = useDB();
@@ -57,7 +58,7 @@ export default function PlansPage() {
                 {p.maxPerMember !== null && <Badge tone="amber">Máx. {p.maxPerMember} por alumno</Badge>}
                 {!p.active && <Badge tone="red">No disponible</Badge>}
               </div>
-              <p className="mt-3 text-xs text-muted">{sold} vendidos</p>
+              <p className="mt-3 text-xs text-muted">{sold} {sold === 1 ? "vendido" : "vendidos"}</p>
             </Card>
           );
         })}
@@ -90,7 +91,8 @@ function PlanModal({ plan, onClose }: { plan?: Plan; onClose: () => void }) {
 
   const save = async () => {
     if (!p.name.trim()) return toast("El nombre es obligatorio.", false);
-    if (p.price < 0 || p.validityDays < 1) return toast("Revisa precio y vigencia.", false);
+    if (p.price < 0) return toast("El precio no puede ser negativo.", false);
+    if (p.validityDays < 1) return toast("La vigencia debe ser de al menos 1 día.", false);
     if (p.credits !== null && p.credits < 1) return toast("El paquete necesita al menos 1 clase.", false);
     const r = await toastDone(
       upsert({ ...p, name: p.name.trim(), description: p.description.trim() }),
@@ -119,16 +121,16 @@ function PlanModal({ plan, onClose }: { plan?: Plan; onClose: () => void }) {
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Precio (MXN)">
-            <Input type="number" min={0} step={50} value={p.price} onChange={(e) => setP({ ...p, price: Number(e.target.value) })} />
+            <NumberInput min={0} step={50} value={p.price} onChange={(v) => setP({ ...p, price: v })} />
           </Field>
           <Field label="Vigencia (días)">
-            <Input type="number" min={1} value={p.validityDays} onChange={(e) => setP({ ...p, validityDays: Number(e.target.value) })} />
+            <NumberInput min={1} value={p.validityDays} onChange={(v) => setP({ ...p, validityDays: v })} />
           </Field>
         </div>
         <Toggle checked={unlimited} onChange={(v) => setP({ ...p, credits: v ? null : 4 })} label="Clases ilimitadas" hint="Membresía sin límite de créditos durante la vigencia." />
         {!unlimited && (
           <Field label="Número de clases (créditos)">
-            <Input type="number" min={1} value={p.credits ?? 1} onChange={(e) => setP({ ...p, credits: Number(e.target.value) })} />
+            <NumberInput min={1} value={p.credits ?? 1} onChange={(v) => setP({ ...p, credits: v })} />
           </Field>
         )}
         <div>
@@ -159,7 +161,7 @@ function PlanModal({ plan, onClose }: { plan?: Plan; onClose: () => void }) {
         />
         {p.maxPerMember !== null && (
           <Field label="Máximo de compras por alumno">
-            <Input type="number" min={1} value={p.maxPerMember} onChange={(e) => setP({ ...p, maxPerMember: Math.max(1, Number(e.target.value)) })} />
+            <NumberInput min={1} clamp value={p.maxPerMember} onChange={(v) => setP({ ...p, maxPerMember: v })} />
           </Field>
         )}
         <Toggle checked={p.featured} onChange={(v) => setP({ ...p, featured: v })} label="Destacar como 'Más popular'" />

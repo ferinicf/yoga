@@ -84,7 +84,7 @@ export default function StudentDetailPage() {
             <div className="flex gap-1">
               {m.credits !== null && (
                 <>
-                  <Button variant="outline" size="sm" className="h-11 w-11 px-0" aria-label="Quitar crédito" onClick={() => { toastDone(adjustCredits(m.id, -1), "Crédito retirado."); }}>
+                  <Button variant="outline" size="sm" className="h-11 w-11 px-0" aria-label="Quitar crédito" disabled={left <= 0} title={left <= 0 ? "Este paquete ya no tiene créditos" : undefined} onClick={() => { toastDone(adjustCredits(m.id, -1), "Crédito retirado."); }}>
                     <Minus size={16} />
                   </Button>
                   <Button variant="outline" size="sm" className="h-11 w-11 px-0" aria-label="Agregar crédito" onClick={() => { toastDone(adjustCredits(m.id, 1), "Crédito agregado."); }}>
@@ -109,7 +109,7 @@ export default function StudentDetailPage() {
       </Link>
       <PageHeader
         title={user.name}
-        subtitle={`Código ${user.code} · alumno desde ${fmt(user.createdAt, "MMMM yyyy")}`}
+        subtitle={`Código ${user.code} · alumno desde ${fmt(user.createdAt, "MMMM 'de' yyyy")}`}
         actions={
           <>
             <Button variant="outline" onClick={() => setEditing((n) => n + 1)}>
@@ -127,13 +127,13 @@ export default function StudentDetailPage() {
           <Card className="p-4">
             <div className="flex items-center gap-3">
               <Avatar name={user.name} color={user.color} size={56} />
-              <div className="min-w-0 space-y-1 text-sm">
-                <a href={`mailto:${user.email}`} className="flex items-center gap-2 truncate hover:underline">
-                  <Mail size={14} className="text-muted" /> {user.email}
+              <div className="min-w-0 text-sm">
+                <a href={`mailto:${user.email}`} className="flex min-h-10 min-w-0 items-center gap-2 hover:underline">
+                  <Mail size={14} className="shrink-0 text-muted" /> <span className="truncate">{user.email}</span>
                 </a>
                 {user.phone && (
-                  <a href={`tel:${user.phone.replace(/\s/g, "")}`} className="flex items-center gap-2 hover:underline">
-                    <Phone size={14} className="text-muted" /> {user.phone}
+                  <a href={`tel:${user.phone.replace(/\s/g, "")}`} className="flex min-h-10 items-center gap-2 hover:underline">
+                    <Phone size={14} className="shrink-0 text-muted" /> {user.phone}
                   </a>
                 )}
                 {!user.active && <Badge>Inactivo</Badge>}
@@ -163,9 +163,9 @@ export default function StudentDetailPage() {
             current.map((m) => renderMembership(m))
           )}
           {past.length > 0 && (
-            <details className="rounded-2xl border border-line bg-surface p-4">
-              <summary className="cursor-pointer text-sm font-medium">Historial de paquetes ({past.length})</summary>
-              <ul className="mt-2 divide-y divide-line text-sm">
+            <details className="rounded-2xl border border-line bg-surface px-4 py-1">
+              <summary className="cursor-pointer py-3 text-sm font-medium">Historial de paquetes ({past.length})</summary>
+              <ul className="mb-3 divide-y divide-line text-sm">
                 {past.map((m) => (
                   <li key={m.id} className="flex justify-between gap-2 py-2">
                     <span>{m.planName}</span>

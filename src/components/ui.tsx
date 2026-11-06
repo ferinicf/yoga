@@ -3,33 +3,42 @@
 import { X } from "lucide-react";
 import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cn, initials } from "@/lib/utils";
+import { ModalToasts, useOpenModals } from "./toast";
 
 /* ---------- Botón ---------- */
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "outline";
+type Size = "sm" | "md" | "lg";
+
+/**
+ * Clases de botón, también para enlaces (<a>/<Link>) que se ven como botón.
+ * Todos los tamaños miden al menos 40 px de alto (objetivo táctil en celular y iPad).
+ */
+export function buttonClass({ variant = "primary", size = "md", className }: { variant?: Variant; size?: Size; className?: string } = {}) {
+  return cn(
+    "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50",
+    size === "sm" && "h-10 px-3 text-sm",
+    size === "md" && "h-11 px-4 text-sm",
+    size === "lg" && "h-12 px-5 text-base",
+    variant === "primary" && "bg-brand text-brand-ink hover:brightness-95",
+    variant === "secondary" && "bg-brand-soft text-brand-strong hover:brightness-95",
+    variant === "outline" && "border border-line bg-surface hover:bg-bg",
+    variant === "ghost" && "hover:bg-black/5",
+    variant === "danger" && "bg-red-600 text-white hover:bg-red-700",
+    className,
+  );
+}
+
 export function Button({
   variant = "primary",
   size = "md",
   className,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: "sm" | "md" | "lg" }) {
-  return (
-    <button
-      {...props}
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50",
-        size === "sm" && "h-9 px-3 text-sm",
-        size === "md" && "h-11 px-4 text-sm",
-        size === "lg" && "h-12 px-5 text-base",
-        variant === "primary" && "bg-brand text-brand-ink hover:brightness-95",
-        variant === "secondary" && "bg-brand-soft text-brand-strong hover:brightness-95",
-        variant === "outline" && "border border-line bg-surface hover:bg-bg",
-        variant === "ghost" && "hover:bg-black/5",
-        variant === "danger" && "bg-red-600 text-white hover:bg-red-700",
-        className,
-      )}
-    />
-  );
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size }) {
+  return <button {...props} className={buttonClass({ variant, size, className })} />;
 }
+
+/** Enlace de texto con área táctil de al menos 40 px de alto (sin cambiar cómo se ve). */
+export const textLinkClass = "inline-flex min-h-10 items-center";
 
 /* ---------- Tarjeta ---------- */
 export function Card({ className, children, ...rest }: { className?: string; children: ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
@@ -94,6 +103,19 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...props} className={cn(inputCls, "pr-8", props.className)} />;
 }
 
+/** Atributos para un campo de teléfono: teclado telefónico y validación nativa del formato. */
+export const phoneInputProps = {
+  type: "tel",
+  inputMode: "tel",
+  autoComplete: "tel",
+  maxLength: 20,
+  pattern: "[0-9 +\\(\\)\\-]{10,20}",
+  title: "Escribe un teléfono de 10 dígitos (puedes usar espacios, guiones o +52).",
+} as const;
+
+/** Valida un teléfono opcional (misma regla que el guardado en el demo y en la base). */
+export { phoneError } from "@/lib/rules";
+
 export function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) {
   return (
     <button
@@ -101,7 +123,7 @@ export function Toggle({ checked, onChange, label, hint }: { checked: boolean; o
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between gap-4 py-2 text-left"
+      className="flex min-h-11 w-full items-center justify-between gap-4 py-2 text-left"
     >
       <span>
         <span className="block text-sm font-medium">{label}</span>
@@ -115,6 +137,10 @@ export function Toggle({ checked, onChange, label, hint }: { checked: boolean; o
 }
 
 /* ---------- Modal: hoja inferior en celular, diálogo centrado en iPad/escritorio ---------- */
+
+/** Cuántos modales hay abiertos: el Toaster se acomoda para no tapar su pie ni sus botones. */
+export { useOpenModals };
+
 export function Modal({
   open,
   onClose,
@@ -141,6 +167,11 @@ export function Modal({
       document.body.style.overflow = prev;
     };
   }, [open, onClose]);
+  useEffect(() => {
+    if (!open) return;
+    useOpenModals.setState((s) => ({ count: s.count + 1 }));
+    return () => useOpenModals.setState((s) => ({ count: Math.max(0, s.count - 1) }));
+  }, [open]);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6" role="dialog" aria-modal aria-label={title}>
@@ -153,12 +184,19 @@ export function Modal({
       >
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-line px-5 py-4">
           <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="rounded-full p-2 hover:bg-black/5" aria-label="Cerrar">
+          <button
+            type="button"
+            onClick={onClose}
+            className="-my-1 -mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-black/5"
+            aria-label="Cerrar"
+          >
             <X size={20} />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-4">{children}</div>
-        {footer && <div className="pb-safe shrink-0 border-t border-line bg-surface px-5 py-3">{footer}</div>}
+        <ModalToasts />
+        {/* En celular la hoja llega al borde inferior: el área segura se suma al padding. */}
+        <div className={cn("min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 pt-4", footer ? "pb-4" : "pb-safe-4 md:pb-4")}>{children}</div>
+        {footer && <div className="shrink-0 border-t border-line bg-surface px-5 pb-safe-3 pt-3 md:pb-3">{footer}</div>}
       </div>
     </div>
   );
@@ -208,8 +246,13 @@ export function Segmented<T extends string>({ value, onChange, options }: { valu
       {options.map((o) => (
         <button
           key={o.value}
+          type="button"
+          aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
-          className={cn("h-9 rounded-lg px-3 text-sm font-medium transition", value === o.value ? "bg-surface shadow-sm" : "text-muted")}
+          className={cn(
+            "h-10 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium transition",
+            value === o.value ? "bg-surface shadow-sm" : "text-muted",
+          )}
         >
           {o.label}
         </button>

@@ -7,6 +7,7 @@ import type { Coupon } from "@/lib/types";
 import { fmt, formatMoney, uid } from "@/lib/utils";
 import { toast, toastDone } from "@/components/toast";
 import { Badge, Button, Card, Empty, Field, Input, Modal, PageHeader, Segmented, Toggle } from "@/components/ui";
+import { NumberInput } from "@/components/admin/number-input";
 
 function couponState(c: Coupon): { label: string; tone: "green" | "gray" | "red" | "amber" } {
   if (!c.active) return { label: "Inactivo", tone: "gray" };
@@ -76,7 +77,8 @@ function CouponModal({ coupon, onClose }: { coupon?: Coupon; onClose: () => void
     const code = c.code.trim().toUpperCase().replace(/\s+/g, "");
     if (!code) return toast("Escribe el código.", false);
     if (db.coupons.some((x) => x.code.toUpperCase() === code && x.id !== c.id)) return toast("Ese código ya existe.", false);
-    if (c.value <= 0 || (c.kind === "percent" && c.value > 100)) return toast("Revisa el valor del descuento.", false);
+    if (c.value <= 0) return toast("El descuento debe ser mayor que 0.", false);
+    if (c.kind === "percent" && c.value > 100) return toast("El descuento no puede pasar del 100%.", false);
     const r = await toastDone(upsert({ ...c, code }), coupon ? "Cupón actualizado." : "Cupón creado.");
     if (r.ok) onClose();
   };
@@ -105,12 +107,12 @@ function CouponModal({ coupon, onClose }: { coupon?: Coupon; onClose: () => void
           ]}
         />
         <Field label={c.kind === "percent" ? "Descuento (%)" : "Descuento (MXN)"}>
-          <Input type="number" min={1} max={c.kind === "percent" ? 100 : undefined} value={c.value} onChange={(e) => setC({ ...c, value: Number(e.target.value) })} />
+          <NumberInput min={1} max={c.kind === "percent" ? 100 : undefined} value={c.value} onChange={(v) => setC({ ...c, value: v })} />
         </Field>
         <Toggle checked={c.maxUses !== null} onChange={(v) => setC({ ...c, maxUses: v ? 10 : null })} label="Limitar número de usos" />
         {c.maxUses !== null && (
-          <Field label="Usos máximos" hint={`Usado ${c.uses} vez/veces hasta ahora.`}>
-            <Input type="number" min={1} value={c.maxUses} onChange={(e) => setC({ ...c, maxUses: Math.max(1, Number(e.target.value)) })} />
+          <Field label="Usos máximos" hint={`Se ha usado ${c.uses} ${c.uses === 1 ? "vez" : "veces"} hasta ahora.`}>
+            <NumberInput min={1} clamp value={c.maxUses} onChange={(v) => setC({ ...c, maxUses: v })} />
           </Field>
         )}
         <Field label="Fecha de vencimiento (opcional)">

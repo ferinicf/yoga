@@ -7,6 +7,7 @@ import type { Discipline, Room } from "@/lib/types";
 import { cn, roomSpots, spotLabel, uid } from "@/lib/utils";
 import { toast, toastResult, toastDone } from "@/components/toast";
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Textarea, Toggle } from "@/components/ui";
+import { NumberInput } from "@/components/admin/number-input";
 
 const DISC_COLORS = ["#C98B6B", "#7C9A92", "#8E7CC3", "#D4A373", "#B5838D", "#6B9AC4", "#6D8B74", "#E09F7D"];
 const LEVELS: Discipline["level"][] = ["Todos los niveles", "Principiante", "Intermedio", "Avanzado"];
@@ -72,7 +73,8 @@ export default function ClassesPage() {
                 <div>
                   <p className="font-semibold">{r.name}</p>
                   <p className="text-sm text-muted">
-                    {roomSpots(r).length} lugares · {r.rows} filas × {r.cols} columnas
+                    {roomSpots(r).length} {roomSpots(r).length === 1 ? "lugar" : "lugares"} · {r.rows} {r.rows === 1 ? "fila" : "filas"} × {r.cols}{" "}
+                    {r.cols === 1 ? "columna" : "columnas"}
                   </p>
                 </div>
                 <button
@@ -115,6 +117,7 @@ function DisciplineModal({ discipline, onClose }: { discipline?: Discipline; onC
   );
   const save = async () => {
     if (!d.name.trim()) return toast("El nombre es obligatorio.", false);
+    if (d.durationMin < 15) return toast("La duración debe ser de al menos 15 minutos.", false);
     const r = await toastDone(
       upsert({ ...d, name: d.name.trim(), description: d.description.trim() }),
       discipline ? "Disciplina actualizada." : "Disciplina creada.",
@@ -141,7 +144,7 @@ function DisciplineModal({ discipline, onClose }: { discipline?: Discipline; onC
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Duración (min)">
-            <Input type="number" min={15} step={5} value={d.durationMin} onChange={(e) => setD({ ...d, durationMin: Number(e.target.value) })} />
+            <NumberInput min={15} step={5} value={d.durationMin} onChange={(v) => setD({ ...d, durationMin: v })} />
           </Field>
           <Field label="Nivel">
             <Select value={d.level} onChange={(e) => setD({ ...d, level: e.target.value as Discipline["level"] })}>
@@ -176,19 +179,18 @@ function RoomModal({ room, onClose }: { room?: Room; onClose: () => void }) {
   const upsert = useStore((s) => s.upsertRoom);
   const del = useStore((s) => s.deleteRoom);
   const [r, setR] = useState<Room>(room ?? { id: uid("r"), name: "", rows: 3, cols: 4, blockedSpots: [] });
-  const resize = (rows: number, cols: number) => {
-    const rr = Math.max(1, Math.min(10, rows || 1));
-    const cc = Math.max(1, Math.min(10, cols || 1));
-    const valid = new Set(roomSpots({ rows: rr, cols: cc, blockedSpots: [] }));
-    setR({ ...r, rows: rr, cols: cc, blockedSpots: r.blockedSpots.filter((s) => valid.has(s)) });
-  };
+  // Los lugares bloqueados fuera de la cuadrícula se conservan mientras se edita (por si se vuelve a agrandar)
+  // y se descartan al guardar.
+  const resize = (rows: number, cols: number) =>
+    setR({ ...r, rows: Math.max(1, Math.min(10, rows)), cols: Math.max(1, Math.min(10, cols)) });
   const toggleSpot = (s: string) =>
     setR({ ...r, blockedSpots: r.blockedSpots.includes(s) ? r.blockedSpots.filter((x) => x !== s) : [...r.blockedSpots, s] });
   const save = async () => {
     if (!r.name.trim()) return toast("El nombre es obligatorio.", false);
     if (roomSpots(r).length === 0) return toast("El salón necesita al menos un lugar.", false);
+    const valid = new Set(roomSpots({ rows: r.rows, cols: r.cols, blockedSpots: [] }));
     const res = await toastDone(
-      upsert({ ...r, name: r.name.trim() }),
+      upsert({ ...r, name: r.name.trim(), blockedSpots: r.blockedSpots.filter((s) => valid.has(s)) }),
       room ? "Salón actualizado. El cupo de clases existentes no cambia." : "Salón creado.",
     );
     if (res.ok) onClose();
@@ -215,7 +217,7 @@ function RoomModal({ room, onClose }: { room?: Room; onClose: () => void }) {
             </Button>
           )}
           <Button className="flex-1" size="lg" onClick={save}>
-            Guardar · {roomSpots(r).length} lugares
+            Guardar · {roomSpots(r).length} {roomSpots(r).length === 1 ? "lugar" : "lugares"}
           </Button>
         </div>
       }
@@ -225,11 +227,11 @@ function RoomModal({ room, onClose }: { room?: Room; onClose: () => void }) {
           <Input value={r.name} onChange={(e) => setR({ ...r, name: e.target.value })} placeholder="Ej. Salón Sol" />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Filas">
-            <Input type="number" min={1} max={10} value={r.rows} onChange={(e) => resize(Number(e.target.value), r.cols)} />
+          <Field label="Filas" hint="De 1 a 10">
+            <NumberInput min={1} max={10} clamp value={r.rows} onChange={(v) => resize(v, r.cols)} />
           </Field>
-          <Field label="Columnas">
-            <Input type="number" min={1} max={10} value={r.cols} onChange={(e) => resize(r.rows, Number(e.target.value))} />
+          <Field label="Columnas" hint="De 1 a 10">
+            <NumberInput min={1} max={10} clamp value={r.cols} onChange={(v) => resize(r.rows, v)} />
           </Field>
         </div>
         <div>

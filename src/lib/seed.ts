@@ -95,7 +95,7 @@ export function createSeed(now = new Date()): DB {
       code: String(3001 + i),
       color: COLORS[i % COLORS.length],
       active: true,
-      createdAt: iso(subDays(now, 100 - i * 5)),
+      createdAt: iso(subDays(now, Math.max(3, 300 - i * 4))),
     });
   });
   const students = users.filter((u) => u.role === "student");

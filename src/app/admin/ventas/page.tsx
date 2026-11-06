@@ -8,8 +8,9 @@ import { useDB, useStore } from "@/lib/store";
 import type { PaymentMethod, Sale } from "@/lib/types";
 import { capitalize, fmt, formatMoney, PAYMENT_LABEL } from "@/lib/utils";
 import { toastDone } from "@/components/toast";
-import { Avatar, Badge, Button, Card, Empty, Field, Modal, PageHeader, Segmented, Select } from "@/components/ui";
+import { Avatar, Badge, Button, Card, Empty, PageHeader, Segmented } from "@/components/ui";
 import { SellModal } from "@/components/admin/sell-modal";
+import { ConfirmSaleModal, saleMethodLabel } from "@/components/admin/confirm-sale-modal";
 
 type Filter = "all" | "paid" | "pending" | "refunded";
 const STATUS: Record<Sale["status"], { label: string; tone: "green" | "amber" | "gray" }> = {
@@ -20,13 +21,11 @@ const STATUS: Record<Sale["status"], { label: string; tone: "green" | "amber" | 
 
 export default function SalesPage() {
   const db = useDB();
-  const confirmSale = useStore((s) => s.confirmSale);
   const refundSale = useStore((s) => s.refundSale);
   const [filter, setFilter] = useState<Filter>("all");
   const [month, setMonth] = useState(startOfMonth(new Date()));
   const [selling, setSelling] = useState(0);
   const [confirming, setConfirming] = useState<Sale | null>(null);
-  const [method, setMethod] = useState<PaymentMethod>("efectivo");
 
   const { list, total, pendingAll, byMethod } = useMemo(() => {
     const end = addMonths(month, 1);
@@ -52,16 +51,9 @@ export default function SalesPage() {
   };
 
   const actions = (s: Sale) => (
-    <div className="flex shrink-0 gap-1">
+    <div className="flex shrink-0 justify-end gap-1">
       {s.status === "pending" && (
-        <Button
-          size="sm"
-          className="h-11"
-          onClick={() => {
-            setMethod(s.method === "en_linea" ? "efectivo" : s.method);
-            setConfirming(s);
-          }}
-        >
+        <Button size="sm" className="h-11" onClick={() => setConfirming(s)}>
           Confirmar
         </Button>
       )}
@@ -91,7 +83,7 @@ export default function SalesPage() {
           className="mb-4 flex w-full items-center justify-between rounded-2xl bg-amber-50 p-4 text-left text-sm text-amber-900 ring-1 ring-amber-200"
         >
           <span>
-            <strong>{pendingAll.length}</strong> pago(s) pendiente(s) por confirmar ·{" "}
+            <strong>{pendingAll.length}</strong> {pendingAll.length === 1 ? "pago pendiente" : "pagos pendientes"} por confirmar ·{" "}
             {formatMoney(pendingAll.reduce((a, s) => a + s.total, 0))}
           </span>
           <ChevronRight size={18} />
@@ -101,11 +93,11 @@ export default function SalesPage() {
       <div className="mb-4 grid gap-3 md:grid-cols-3">
         <Card className="p-4 md:col-span-1">
           <div className="flex items-center justify-between">
-            <button className="flex h-11 w-11 items-center justify-center rounded-xl hover:bg-black/5" onClick={() => setMonth(addMonths(month, -1))} aria-label="Mes anterior">
+            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl hover:bg-black/5" onClick={() => setMonth(addMonths(month, -1))} aria-label="Mes anterior">
               <ChevronLeft size={18} />
             </button>
-            <p className="font-medium">{capitalize(fmt(month, "MMMM yyyy"))}</p>
-            <button className="flex h-11 w-11 items-center justify-center rounded-xl hover:bg-black/5" onClick={() => setMonth(addMonths(month, 1))} aria-label="Mes siguiente">
+            <p className="min-w-0 text-center font-medium">{capitalize(fmt(month, "MMMM yyyy"))}</p>
+            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl hover:bg-black/5" onClick={() => setMonth(addMonths(month, 1))} aria-label="Mes siguiente">
               <ChevronRight size={18} />
             </button>
           </div>
@@ -125,7 +117,8 @@ export default function SalesPage() {
         </Card>
       </div>
 
-      <div className="no-scrollbar mb-4 overflow-x-auto">
+      {/* En celular la tira llega al borde de la pantalla: si no cabe, se desliza. */}
+      <div className="no-scrollbar -mx-4 mb-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <Segmented
           value={filter}
           onChange={setFilter}
@@ -142,23 +135,29 @@ export default function SalesPage() {
         <Empty icon={<Receipt size={28} />} title="Sin ventas" text="No hay ventas con este filtro en el mes seleccionado." />
       ) : (
         <>
-          <ul className="space-y-2 md:hidden">
+          {/* Celular y iPad vertical: tarjetas (la tabla de 7 columnas no cabe) */}
+          <ul className="space-y-2 lg:hidden">
             {list.map((s) => {
               const u = db.users.find((x) => x.id === s.userId);
               return (
                 <li key={s.id} className="rounded-2xl border border-line bg-surface p-3">
                   <div className="flex items-start gap-3">
-                    {u && <Avatar name={u.name} color={u.color} size={36} />}
-                    <div className="min-w-0 flex-1">
-                      <Link href={`/admin/alumnos/${s.userId}`} className="block truncate font-medium">
-                        {u?.name}
-                      </Link>
-                      <p className="truncate text-xs text-muted">
-                        {s.concept} · {fmt(s.createdAt, "d MMM HH:mm")}
-                      </p>
-                      <p className="text-xs text-muted">{PAYMENT_LABEL[s.method]}</p>
-                    </div>
-                    <div className="text-right">
+                    <Link href={`/admin/alumnos/${s.userId}`} className="-m-1 flex min-h-11 min-w-0 flex-1 items-start gap-3 rounded-xl p-1 hover:bg-bg">
+                      {u && <Avatar name={u.name} color={u.color} size={36} />}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{u?.name}</p>
+                        <p className="truncate text-xs text-muted">
+                          {s.concept} · {fmt(s.createdAt, "d MMM HH:mm")}
+                        </p>
+                        {s.couponCode && (
+                          <p className="truncate text-xs text-muted">
+                            Cupón {s.couponCode} (−{formatMoney(s.discount)})
+                          </p>
+                        )}
+                        <p className="text-xs text-muted">{saleMethodLabel(s)}</p>
+                      </div>
+                    </Link>
+                    <div className="shrink-0 text-right">
                       <p className="font-semibold tabular-nums">{formatMoney(s.total)}</p>
                       <Badge tone={STATUS[s.status].tone}>{STATUS[s.status].label}</Badge>
                     </div>
@@ -168,17 +167,17 @@ export default function SalesPage() {
               );
             })}
           </ul>
-          <div className="hidden overflow-hidden rounded-2xl border border-line bg-surface md:block">
+          <div className="hidden overflow-x-auto rounded-2xl border border-line bg-surface lg:block">
             <table className="w-full text-sm">
               <thead className="bg-bg text-left text-xs uppercase tracking-wide text-muted">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Fecha</th>
-                  <th className="px-4 py-3 font-medium">Alumno</th>
-                  <th className="px-4 py-3 font-medium">Concepto</th>
-                  <th className="px-4 py-3 font-medium">Pago</th>
-                  <th className="px-4 py-3 text-right font-medium">Total</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="px-4 py-3" />
+                  <th className="px-3 py-3 font-medium">Fecha</th>
+                  <th className="px-3 py-3 font-medium">Alumno</th>
+                  <th className="px-3 py-3 font-medium">Concepto</th>
+                  <th className="px-3 py-3 font-medium">Pago</th>
+                  <th className="px-3 py-3 text-right font-medium">Total</th>
+                  <th className="px-3 py-3 font-medium">Estado</th>
+                  <th className="px-3 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -186,22 +185,22 @@ export default function SalesPage() {
                   const u = db.users.find((x) => x.id === s.userId);
                   return (
                     <tr key={s.id}>
-                      <td className="whitespace-nowrap px-4 py-2 tabular-nums text-muted">{fmt(s.createdAt, "d MMM HH:mm")}</td>
-                      <td className="px-4 py-2">
-                        <Link href={`/admin/alumnos/${s.userId}`} className="font-medium hover:underline">
+                      <td className="whitespace-nowrap px-3 py-2 tabular-nums text-muted">{fmt(s.createdAt, "d MMM HH:mm")}</td>
+                      <td className="px-3 py-2">
+                        <Link href={`/admin/alumnos/${s.userId}`} className="inline-flex min-h-11 items-center font-medium hover:underline">
                           {u?.name}
                         </Link>
                       </td>
-                      <td className="px-4 py-2">
+                      <td className="px-3 py-2">
                         {s.concept}
                         {s.couponCode && <span className="block text-xs text-muted">Cupón {s.couponCode} (−{formatMoney(s.discount)})</span>}
                       </td>
-                      <td className="px-4 py-2 text-muted">{PAYMENT_LABEL[s.method]}</td>
-                      <td className="px-4 py-2 text-right font-semibold tabular-nums">{formatMoney(s.total)}</td>
-                      <td className="px-4 py-2">
+                      <td className="px-3 py-2 text-muted">{saleMethodLabel(s)}</td>
+                      <td className="px-3 py-2 text-right font-semibold tabular-nums">{formatMoney(s.total)}</td>
+                      <td className="px-3 py-2">
                         <Badge tone={STATUS[s.status].tone}>{STATUS[s.status].label}</Badge>
                       </td>
-                      <td className="px-4 py-2 text-right">{s.status !== "refunded" && actions(s)}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right">{s.status !== "refunded" && actions(s)}</td>
                     </tr>
                   );
                 })}
@@ -211,42 +210,7 @@ export default function SalesPage() {
         </>
       )}
 
-      <Modal
-        open={!!confirming}
-        onClose={() => setConfirming(null)}
-        title="Confirmar pago"
-        footer={
-          <Button
-            className="w-full"
-            size="lg"
-            onClick={() => {
-              if (!confirming) return;
-              toastDone(confirmSale(confirming.id, method), "Pago confirmado. El paquete ya está activo.");
-              setConfirming(null);
-            }}
-          >
-            Confirmar {confirming && formatMoney(confirming.total)}
-          </Button>
-        }
-      >
-        {confirming && (
-          <div className="space-y-4">
-            <p className="text-sm">
-              {db.users.find((u) => u.id === confirming.userId)?.name} · {confirming.concept}
-            </p>
-            <Field label="¿Cómo pagó?">
-              <Select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
-                {(["efectivo", "tarjeta", "transferencia"] as PaymentMethod[]).map((m) => (
-                  <option key={m} value={m}>
-                    {PAYMENT_LABEL[m]}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <p className="text-xs text-muted">La vigencia del paquete empieza a contar desde hoy.</p>
-          </div>
-        )}
-      </Modal>
+      {confirming && <ConfirmSaleModal key={confirming.id} sale={confirming} onClose={() => setConfirming(null)} />}
 
       {selling > 0 && <SellModal key={selling} open onClose={() => setSelling(0)} />}
     </div>

@@ -78,7 +78,8 @@ export function SellModal({ open, onClose, userId }: { open: boolean; onClose: (
         </Field>
         {plan && (
           <p className="text-sm text-muted">
-            {plan.credits === null ? "Clases ilimitadas" : `${plan.credits} crédito(s)`} · vigencia {plan.validityDays} días
+            {plan.credits === null ? "Clases ilimitadas" : `${plan.credits} ${plan.credits === 1 ? "crédito" : "créditos"}`} · vigencia{" "}
+            {plan.validityDays} {plan.validityDays === 1 ? "día" : "días"}
           </p>
         )}
         <Field label="Cupón (opcional)" hint={c.error ?? (c.discount ? `Descuento: ${formatMoney(c.discount)}` : undefined)}>

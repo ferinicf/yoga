@@ -4,17 +4,23 @@ import { useState } from "react";
 import { RotateCcw, Save } from "lucide-react";
 import { useSettings, useStore } from "@/lib/store";
 import type { Settings } from "@/lib/types";
+import { brandInk, brandText, contrastRatio } from "@/components/providers";
 import { toast, toastDone } from "@/components/toast";
 import { Button, Card, Field, Input, PageHeader, Toggle } from "@/components/ui";
+import { NumberInput } from "@/components/admin/number-input";
 
 const BRAND_PRESETS = ["#5B7F6E", "#7A6A8F", "#B0705A", "#4F6D8A", "#8A7354", "#3F6B6B", "#A15C73", "#2F3E36"];
+/** Fondo crema (--bg) y tarjetas (--surface): ahí se ven los enlaces y pestañas en color de marca. */
+const BG_COLORS = ["#f7f5f1", "#ffffff"];
+/** Contraste mínimo recomendable para texto en color de marca (WCAG, texto grande / componentes). */
+const MIN_TEXT_CONTRAST = 3;
 
 function LimitField({ label, hint, value, onChange }: { label: string; hint: string; value: number | null; onChange: (v: number | null) => void }) {
   return (
     <div className="rounded-2xl border border-line p-3">
       <Toggle checked={value !== null} onChange={(on) => onChange(on ? 2 : null)} label={label} hint={value === null ? "Sin límite" : hint} />
       {value !== null && (
-        <Input type="number" min={1} value={value} onChange={(e) => onChange(Math.max(1, Number(e.target.value)))} className="mt-2" />
+        <NumberInput min={1} clamp value={value} onChange={onChange} className="mt-2" aria-label={label} />
       )}
     </div>
   );
@@ -28,6 +34,10 @@ export default function SettingsPage() {
   const [s, setS] = useState<Settings>(settings);
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setS((prev) => ({ ...prev, [k]: v }));
   const dirty = JSON.stringify(s) !== JSON.stringify(settings);
+  const validColor = /^#[0-9a-fA-F]{6}$/.test(s.brandColor);
+  const ink = brandInk(s.brandColor);
+  const textContrast = validColor ? Math.min(...BG_COLORS.map((bg) => contrastRatio(s.brandColor, bg))) : 21;
+  const lowContrast = textContrast < MIN_TEXT_CONTRAST;
 
   const save = () => {
     if (!s.studioName.trim()) return toast("El nombre del estudio es obligatorio.", false);
@@ -89,14 +99,26 @@ export default function SettingsPage() {
                 <span className="font-mono text-sm">{s.brandColor.toUpperCase()}</span>
               </label>
             </div>
-            <div className="mt-3 flex items-center gap-3 rounded-2xl bg-bg p-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-2xl text-lg font-bold text-white" style={{ background: s.brandColor }}>
-                {s.studioName.charAt(0)}
-              </span>
-              <span className="rounded-xl px-4 py-2 text-sm font-medium text-white" style={{ background: s.brandColor }}>
-                Reservar
-              </span>
-              <span className="text-xs text-muted">Vista previa</span>
+            <div className="mt-3 rounded-2xl bg-bg p-3">
+              <p className="mb-2 text-xs text-muted">Vista previa</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl text-lg font-bold" style={{ background: s.brandColor, color: ink }}>
+                  {s.studioName.charAt(0)}
+                </span>
+                <span className="rounded-xl px-4 py-2 text-sm font-medium" style={{ background: s.brandColor, color: ink }}>
+                  Reservar
+                </span>
+                <span className="text-sm font-medium" style={{ color: validColor ? brandText(s.brandColor) : s.brandColor }}>
+                  Ver semana
+                </span>
+              </div>
+              {lowContrast && (
+                <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200" role="status">
+                  Este color es muy claro sobre el fondo (contraste {textContrast.toFixed(1)}:1; lo recomendable es al menos{" "}
+                  {MIN_TEXT_CONTRAST}:1). Para que se lean, los enlaces y pestañas usan un tono más oscuro de tu color, como en la
+                  vista previa. Si prefieres que se vea igual en todos lados, elige un tono más oscuro.
+                </p>
+              )}
             </div>
           </div>
         </Card>
@@ -105,10 +127,10 @@ export default function SettingsPage() {
           <h2 className="text-lg font-semibold">Políticas de reserva</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Cancelar sin penalización hasta" hint="Horas antes de la clase. Después se pierde el crédito.">
-              <Input type="number" min={0} value={s.cancelHours} onChange={(e) => set("cancelHours", Math.max(0, Number(e.target.value)))} />
+              <NumberInput min={0} clamp value={s.cancelHours} onChange={(v) => set("cancelHours", v)} />
             </Field>
             <Field label="Reservar con anticipación máxima" hint="Días hacia adelante que se ven en el horario.">
-              <Input type="number" min={1} max={42} value={s.bookingWindowDays} onChange={(e) => set("bookingWindowDays", Math.max(1, Number(e.target.value)))} />
+              <NumberInput min={1} max={42} clamp value={s.bookingWindowDays} onChange={(v) => set("bookingWindowDays", v)} />
             </Field>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">

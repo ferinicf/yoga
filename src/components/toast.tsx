@@ -1,49 +1,96 @@
 "use client";
 
 import { create } from "zustand";
-import { CheckCircle2, AlertCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/** Cuántos modales hay abiertos (los avisos se muestran dentro del modal mientras haya uno). */
+export const useOpenModals = create<{ count: number }>(() => ({ count: 0 }));
+
+/** true = éxito, false = error, "warn" = salió bien pero con una consecuencia (p. ej. sin reembolso). */
+type Tone = boolean | "warn";
 
 interface Toast {
   id: number;
   text: string;
-  ok: boolean;
+  ok: Tone;
 }
 
-const useToasts = create<{ items: Toast[]; push: (text: string, ok?: boolean) => void }>((set) => ({
+/** Como máximo se ven 2 avisos a la vez, para no tapar la pantalla ni los modales. */
+const MAX_TOASTS = 2;
+
+const useToasts = create<{ items: Toast[]; push: (text: string, ok?: Tone) => void }>((set) => ({
   items: [],
   push: (text, ok = true) => {
     const id = Date.now() + Math.random();
-    set((s) => ({ items: [...s.items, { id, text, ok }] }));
+    // Un aviso repetido reemplaza al anterior (y vuelve a contar su tiempo).
+    set((s) => ({ items: [...s.items.filter((t) => t.text !== text), { id, text, ok }].slice(-MAX_TOASTS) }));
     setTimeout(() => set((s) => ({ items: s.items.filter((t) => t.id !== id) })), 3800);
   },
 }));
 
-export const toast = (text: string, ok = true) => useToasts.getState().push(text, ok);
+export const toast = (text: string, ok: Tone = true) => useToasts.getState().push(text, ok);
 type R = { ok: boolean; message: string };
+/** Cancelaciones tardías: salen bien, pero no se devuelve el crédito (mismo texto en demo y en la base). */
+const NO_REFUND = /no se devolvió el crédito/i;
 /** Muestra el resultado de una acción (acepta promesas) y lo devuelve. */
 export async function toastResult<T extends R>(r: T | Promise<T>): Promise<T> {
   const x = await r;
-  if (x.message) toast(x.message, x.ok);
+  if (x.message) toast(x.message, x.ok && NO_REFUND.test(x.message) ? "warn" : x.ok);
   return x;
 }
 
+function ToastItem({ t, inline }: { t: Toast; inline?: boolean }) {
+  return (
+    <div
+      role="status"
+      className={cn(
+        "animate-sheet flex items-start gap-2 rounded-2xl px-4 py-3 text-sm",
+        inline ? "w-full" : "max-w-sm shadow-lg",
+        t.ok === "warn" ? "bg-amber-400 text-stone-900" : t.ok ? "bg-stone-900 text-white" : "bg-red-600 text-white",
+      )}
+    >
+      {t.ok === "warn" ? (
+        <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+      ) : t.ok ? (
+        <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
+      ) : (
+        <AlertCircle size={18} className="mt-0.5 shrink-0" />
+      )}
+      <span>{t.text}</span>
+    </div>
+  );
+}
+
+/**
+ * Avisos flotantes. Celular: arriba; iPad/escritorio: abajo a la derecha. No reciben toques
+ * (pointer-events-none) para no bloquear botones. Con un modal abierto no flotan: se muestran
+ * dentro del modal (ModalToasts) para no tapar su título ni sus botones.
+ */
 export function Toaster() {
   const items = useToasts((s) => s.items);
+  const modalOpen = useOpenModals((s) => s.count > 0);
+  if (modalOpen) return null;
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 p-4 pt-safe md:bottom-0 md:top-auto md:items-end">
+    <div
+      aria-live="polite"
+      className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 px-4 pb-4 pt-safe-4 md:bottom-0 md:top-auto md:items-end md:pb-safe-4"
+    >
       {items.map((t) => (
-        <div
-          key={t.id}
-          role="status"
-          className={cn(
-            "animate-sheet pointer-events-auto flex max-w-sm items-start gap-2 rounded-2xl px-4 py-3 text-sm text-white shadow-lg",
-            t.ok ? "bg-stone-900" : "bg-red-600",
-          )}
-        >
-          {t.ok ? <CheckCircle2 size={18} className="mt-0.5 shrink-0" /> : <AlertCircle size={18} className="mt-0.5 shrink-0" />}
-          <span>{t.text}</span>
-        </div>
+        <ToastItem key={t.id} t={t} />
+      ))}
+    </div>
+  );
+}
+
+/** Avisos dentro de un modal abierto, debajo de su encabezado. */
+export function ModalToasts() {
+  const items = useToasts((s) => s.items);
+  if (!items.length) return null;
+  return (
+    <div aria-live="polite" className="flex shrink-0 flex-col gap-2 border-b border-line px-5 py-3">
+      {items.map((t) => (
+        <ToastItem key={t.id} t={t} inline />
       ))}
     </div>
   );
