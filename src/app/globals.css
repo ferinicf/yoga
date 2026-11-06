@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+:root {
+  --brand: #5b7f6e;
+  --brand-ink: #ffffff;
+  --bg: #f7f5f1;
+  --surface: #ffffff;
+  --ink: #1f2421;
+  --muted: #6b716d;
+  --line: #e7e3dc;
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Tintes de la marca para fondos suaves */
+.bg-brand-soft {
+  background: color-mix(in srgb, var(--brand) 12%, white);
+}
+.text-brand-strong {
+  color: color-mix(in srgb, var(--brand) 80%, black);
+}
+.ring-brand {
+  --tw-ring-color: var(--brand);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-sheet {
+  animation: sheet-in 0.18s ease-out;
+}
