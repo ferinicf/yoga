@@ -20,10 +20,14 @@ const FOOTER_LINKS = [
   { href: SUPPORT_PATH, label: "Ayuda" },
 ];
 
-/** Contacto del estudio: solo con datos del servidor (en el demo los datos son de ejemplo). */
+/**
+ * Contacto del estudio: solo con datos del servidor (en el demo los datos son de ejemplo). Antes
+ * del arranque (HTML del servidor o del export) usa los datos fijos: así el texto ya viene en el
+ * HTML, coincide al hidratar y nunca muestra los datos de ejemplo de la semilla.
+ */
 export function useStudioContact(): StudioContact {
   const settings = useSettings();
-  const live = useStore((s) => s.mode) === "live";
+  const live = useStore((s) => s.mode === "live" && s.hydrated);
   return studioContact(live ? settings : null);
 }
 
@@ -221,14 +225,21 @@ export function EmailButton({ subject, body, children, variant = "primary" }: { 
   );
 }
 
-/** Con sesión iniciada en la app: atajo a Mi perfil, donde está "Eliminar mi cuenta". */
+/** Dónde está "Eliminar mi cuenta" para cada rol (alumno y profesor: Perfil; administración: Mi cuenta). */
+const ACCOUNT_PAGE = {
+  student: { href: "/alumno/perfil", label: "Ir a mi perfil" },
+  teacher: { href: "/profesor/perfil", label: "Ir a mi perfil" },
+  admin: { href: "/admin/cuenta", label: "Ir a Mi cuenta" },
+} as const;
+
+/** Con sesión iniciada en la app: atajo a la pantalla donde está "Eliminar mi cuenta". */
 export function ProfileShortcut() {
   const user = useCurrentUser();
-  const href = user?.role === "student" ? "/alumno/perfil" : user?.role === "teacher" ? "/profesor/perfil" : null;
-  if (!href) return null;
+  const target = user ? ACCOUNT_PAGE[user.role] : null;
+  if (!target) return null;
   return (
-    <Link href={href} className={buttonClass({ size: "lg", className: "w-full sm:w-auto" })}>
-      <UserRound size={18} aria-hidden /> Ir a mi perfil
+    <Link href={target.href} className={buttonClass({ size: "lg", className: "w-full sm:w-auto" })}>
+      <UserRound size={18} aria-hidden /> {target.label}
     </Link>
   );
 }

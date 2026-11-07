@@ -62,7 +62,14 @@ const FAQ: { q: string; a: ReactNode }[] = [
   },
   {
     q: "¿Cómo activo o quito los recordatorios?",
-    a: "En la app para iPhone y Android, la primera vez que reservas te preguntamos si quieres un aviso 1 hora antes de cada clase. Para cambiarlo después, entra a la configuración de tu teléfono → Marea → Notificaciones.",
+    a: (
+      <>
+        En la app para iPhone y Android, la primera vez que reservas te preguntamos si quieres un aviso 1 hora antes de cada
+        clase. Si dijiste que no, en <strong className="font-medium">Perfil → Recordatorios de clases</strong> toca{" "}
+        <strong className="font-medium">Activar recordatorios</strong>. Para quitarlos, entra a la configuración de tu
+        teléfono → Marea → Notificaciones.
+      </>
+    ),
   },
   {
     q: "Olvidé mi contraseña",
@@ -85,7 +92,8 @@ const FAQ: { q: string; a: ReactNode }[] = [
     q: "¿Cómo elimino mi cuenta?",
     a: (
       <>
-        En <strong className="font-medium">Perfil → Eliminar mi cuenta</strong>, o por correo si ya no tienes la app.{" "}
+        En <strong className="font-medium">Perfil → Eliminar mi cuenta</strong> (si administras el estudio, en{" "}
+        <strong className="font-medium">Menú → Mi cuenta</strong>), o por correo si ya no tienes la app.{" "}
         <Link href={DELETE_ACCOUNT_PATH} className={link}>
           Ver los pasos
         </Link>

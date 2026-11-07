@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useCurrentUser, useDB, useStore } from "@/lib/store";
 import { toast, toastResult } from "@/components/toast";
 import { TeacherEarnings } from "@/components/teacher-earnings";
+import { DeleteAccount, PrivacyLink } from "@/components/delete-account";
 import { Avatar, Button, Card, Field, Input, PageHeader, Textarea, phoneError, phoneInputProps } from "@/components/ui";
 
 export default function TeacherProfile() {
@@ -79,6 +80,9 @@ export default function TeacherProfile() {
           </form>
         </Card>
       </section>
+      {/* Mismo tamaño de título que las demás secciones de esta página. */}
+      <PrivacyLink titleClassName="mb-3 text-lg font-semibold" />
+      <DeleteAccount titleClassName="mb-3 text-lg font-semibold" />
     </div>
   );
 }

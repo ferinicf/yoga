@@ -246,7 +246,7 @@ export default function PrivacyPage() {
         <ul className={list}>
           <li>Tu sesión iniciada, para que no tengas que escribir tu contraseña cada vez.</li>
           <li>Si estás usando el modo demo y sus datos de ejemplo (no son datos reales).</li>
-          <li>Si ya te preguntamos por los recordatorios y qué respondiste.</li>
+          <li>Cuándo te explicamos por última vez cómo activar los recordatorios, para no insistir.</li>
           <li>Datos temporales de navegación, que se borran al cerrar la app o la pestaña.</li>
         </ul>
         <p>

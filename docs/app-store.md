@@ -1,251 +1,211 @@
 # App Store: Marea en iPhone y iPad
 
-Guía paso a paso: lo que se adelanta desde el navegador, lo que se hace **el lunes en la Mac** con Xcode y
-cómo compilar en la nube cuando no estés frente a la Mac. Resumen general y lista de secretos:
-[publicar-app.md](publicar-app.md).
+Guía paso a paso para publicar Marea en la App Store **sin Mac**: Codemagic compila y sube la app a TestFlight
+([codemagic.md](codemagic.md)) y todo lo demás se hace desde el navegador en **App Store Connect**
+(https://appstoreconnect.apple.com). Resumen general y lista de pendientes: [publicar-app.md](publicar-app.md).
 
 ---
 
-## Antes del lunes (desde cualquier navegador)
+## Antes de empezar
 
-1. **Revisa tu membresía**: https://developer.apple.com/account → **Membresía**. Debe estar activa (el
-   programa se paga cada año). Anota tu **Team ID** (10 letras y números); lo pide GitHub para compilar en la nube.
-2. **Acepta los acuerdos pendientes**: https://appstoreconnect.apple.com → **Negocios** (Business). Sin eso no
-   deja subir compilaciones. Como Marea es gratis y no vende nada dentro de la app, no necesitas el acuerdo de
-   apps de pago ni datos bancarios.
-3. **Registra el Bundle ID**: developer.apple.com/account → **Certificates, IDs & Profiles → Identifiers → +**
-   → **App IDs** → **App** → Descripción `Marea`, Bundle ID **Explicit** `mx.marea.app` → no marques
-   capacidades extra → **Continue → Register**.
-4. **Crea la app en App Store Connect**: **Apps → + → Nueva app**:
-   - Plataforma: **iOS**.
-   - Nombre: **Marea** (tiene que ser único en la App Store; si ya está ocupado usa, por ejemplo,
-     "Marea Yoga". Debajo del ícono en el teléfono seguirá diciendo "Marea").
-   - Idioma principal: **Español (México)**. Bundle ID: **mx.marea.app**. SKU: `marea-ios`. Acceso: completo.
-5. **Ten listos los textos y direcciones** (ver pasos 8 y 9): descripción, palabras clave, URL de soporte y
-   **URL de la política de privacidad** (p. ej. `https://marea-navy.vercel.app/privacidad`; *pendiente de
-   publicar en la web*).
-6. **Crea la cuenta de prueba para el revisor de Apple**: un alumno real (no el modo demo) con el correo ya
-   confirmado, un paquete activo y clases disponibles en las próximas dos semanas. No la uses para probar
-   "Eliminar cuenta".
-
-> **¿Tu Mac sirve?** Apple pide compilar las apps de iOS con **Xcode 26 o más reciente**. Hoy la versión
-> actual es **Xcode 27.2**, que necesita **macOS Tahoe 26.6 o más reciente** (Xcode 26.6 necesita macOS Tahoe
-> 26.2). Si tu Mac no puede actualizarse a macOS Tahoe, no podrá compilar para la App Store: en ese caso usa la
-> compilación en la nube ([abajo](#compilar-en-la-nube-sin-mac)) o Codemagic ([codemagic.md](codemagic.md)).
+1. **Membresía activa.** https://developer.apple.com/account → **Membresía**: debe estar vigente (se paga cada año).
+2. **Acuerdos.** En App Store Connect, si aparece un aviso de acuerdos o términos nuevos, acéptalos (también en
+   **Negocios**). Sin eso Apple no acepta compilaciones. Como Marea es gratis y no vende nada dentro de la app, no
+   necesitas el acuerdo de apps de pago ni datos bancarios.
+3. **Tu nombre será el vendedor.** Tu cuenta de Apple Developer es **personal**, así que en la App Store, debajo
+   de "Marea", aparecerá **tu nombre legal** como vendedor (no "Marea" ni el nombre del estudio). Así funciona
+   para todas las cuentas individuales; para mostrar el nombre de una empresa hace falta una cuenta de
+   organización (persona moral con número D-U-N-S).
+   - La regla **5.2.1** pide que la app la publique quien es dueño de la marca o tiene permiso para usarla.
+     Es un motivo común de rechazo cuando una app de un negocio sale desde una cuenta personal. Ten listo un
+     documento que muestre que eres dueño o representante del estudio Marea, por ejemplo tu constancia de
+     situación fiscal con la actividad del estudio, el contrato del local a tu nombre o, si el estudio es de
+     otra persona, una carta firmada en la que te autoriza a publicar la app con el nombre Marea.
+     Si Apple lo pide, adjúntalo al responder en App Store Connect. Las notas al revisor (paso 9) ya lo explican.
+4. **La lista de pendientes** de [publicar-app.md](publicar-app.md#lista-de-pendientes-antes-de-enviar-a-revisión):
+   páginas públicas, migración 0008 aplicada por el desarrollador y las dos cuentas de prueba.
 
 ---
 
-## El lunes, en la Mac
+## 1. Registrar el Bundle ID
 
-### 1. Preparar la Mac (lo primero: son descargas grandes)
+Es el identificador de la app en tu cuenta de Apple. Codemagic también lo registra solo en la primera
+compilación, pero hacerlo a mano antes te deja crear la app en el paso 2 sin esperar.
 
-1. **Menú  → Acerca de esta Mac**: revisa la versión de macOS. Si hace falta, **Configuración del Sistema →
-   General → Actualización de software** (puede tardar una hora).
-2. Instala o actualiza **Xcode** desde la **Mac App Store**. Ábrelo una vez, acepta la licencia y, si lo pide,
-   descarga el componente **iOS** (trae los simuladores de iPhone y iPad).
-3. Instala **Node.js 22**: https://nodejs.org/en/download → elige la versión **22** y el instalador para macOS
-   (`.pkg`). Es la misma versión que usan las compilaciones en la nube.
-4. Abre **Terminal** y escribe `git --version`. Si te ofrece instalar las herramientas de desarrollo, acepta.
-5. En Xcode: **Xcode → Settings → Accounts → + → Apple Account** → entra con la cuenta de Apple Developer.
+1. https://developer.apple.com/account → **Certificates, IDs & Profiles → Identifiers → +**.
+2. **App IDs** → **App** → **Continue**.
+3. *Description*: `Marea`. *Bundle ID*: **Explicit** → `mx.marea.app`.
+4. No marques capacidades extra → **Continue → Register**.
 
-### 2. Bajar el proyecto y prepararlo
+Si dice que ya existe, perfecto: sigue al paso 2.
 
-Con la app **GitHub Desktop** (https://desktop.github.com): **File → Clone repository** → `ferinicf/yoga` →
-elige la carpeta → **Clone**, y luego cambia a la rama que tenga la carpeta `ios/` (*Current branch*).
-O desde Terminal:
+## 2. Crear la app en App Store Connect
 
-```bash
-cd ~/Desktop
-git clone https://github.com/ferinicf/yoga.git marea
-cd marea
-git checkout NOMBRE-DE-LA-RAMA   # la rama que tenga la carpeta ios/ (o main, cuando ya esté unida)
-```
+**Apps → + → Nueva app**:
 
-Después, en Terminal, dentro de la carpeta del proyecto:
+- Plataforma: **iOS**.
+- Nombre: **Marea**. Tiene que ser único en toda la App Store; si ya está ocupado usa, por ejemplo,
+  "Marea Yoga" o "Marea Estudio". Debajo del ícono en el teléfono seguirá diciendo "Marea".
+- Idioma principal: **Español (México)**.
+- ID del paquete (Bundle ID): **mx.marea.app**.
+- SKU: `marea-ios`. Acceso de usuarios: **Acceso completo**.
 
-```bash
-npm ci               # instala las dependencias (unos minutos)
-npm run cap:sync     # arma la interfaz (out/) y la copia a los proyectos de iOS y Android
-npx cap open ios     # abre ios/App/App.xcodeproj en Xcode
-```
+## 3. Compilar y subir a TestFlight
 
-### 3. Firma en Xcode
-
-1. Espera a que Xcode termine de descargar los paquetes (arriba dice *Resolving packages*).
-2. A la izquierda, clic en **App** (ícono azul) → en **TARGETS** elige **App** → pestaña **Signing & Capabilities**.
-3. Marca **Automatically manage signing**. En **Team** elige tu nombre (la cuenta de pago; **no** la que dice
-   "Personal Team").
-4. **Bundle Identifier**: `mx.marea.app` (ya viene).
-5. Pestaña **General**: **Display Name** Marea, **Version** `1.0`, **Build** `1`. En *Supported Destinations*
-   ya vienen iPhone y iPad.
-
-### 4. Probar
-
-1. Arriba, junto al botón ▶, elige el simulador **iPhone 17 Pro** (o 18 Pro) y presiona ▶ (Cmd+R).
-2. Revisa: iniciar sesión con la cuenta de prueba, reservar y cancelar, aceptar las notificaciones, la pantalla
-   **Mi perfil** (código QR y **Eliminar cuenta**, esta última con otra cuenta de prueba).
-3. Enlace profundo: en Safari del simulador escribe `marea://alumno/reservas` → debe abrir Marea en *Mis reservas*.
-4. (Opcional) En tu iPhone: conéctalo con cable, toca **Confiar**, activa **Configuración → Privacidad y
-   seguridad → Modo de desarrollador**, elígelo arriba en Xcode y presiona ▶.
-
-### 5. Capturas de pantalla
-
-Según la página de Apple (consultada el 7 de noviembre de 2026) son **obligatorias**: iPhone "con Dynamic
-Island, pantalla mediana" y **iPad de 13"** (la app también corre en iPad). Toma también la de **6.9"**, que es
-la más grande: App Store Connect reduce las capturas grandes para las pantallas más chicas.
-
-| Pantalla | Simulador | Tamaño (vertical) |
-|---|---|---|
-| iPhone 6.9" | iPhone 17 Pro Max (o 18 Pro Max) | 1320 × 2868 |
-| iPhone 6.3" (obligatoria) | iPhone 17 Pro (o 18 Pro) | 1206 × 2622 |
-| iPad 13" (obligatoria) | iPad Pro 13 pulgadas | 2064 × 2752 |
-
-1. Elige el simulador y presiona ▶.
-2. En cada pantalla que quieras mostrar (horario, reservar, mis reservas, paquetes, código QR) presiona
-   **Cmd+S** en el simulador: la captura se guarda en el Escritorio, ya del tamaño correcto.
-3. De 3 a 5 capturas por tamaño (máximo 10). PNG o JPG, sin transparencias.
-
-### 6. Archivar y subir (Archive)
-
-1. Arriba, como destino, elige **Any iOS Device (arm64)**.
-2. Menú **Product → Archive**. Tarda unos minutos y luego se abre el **Organizer**.
-3. Selecciona el archivo nuevo → **Distribute App** → **App Store Connect** → **Distribute**. Si te pregunta,
-   deja marcado subir los símbolos y **administrar la versión y el número de compilación**, con firma automática.
-4. Espera el mensaje de que se subió correctamente.
-
-### 7. TestFlight
-
-1. App Store Connect → **Apps → Marea → TestFlight**. La compilación aparece como *Procesando* (5 a 30
-   minutos; te llega un correo cuando está lista).
-2. **Cumplimiento de exportación**: ya está resuelto en el proyecto (la app no usa cifrado propio), así que no
+1. En Codemagic lanza el flujo **Marea - iPhone/iPad (TestFlight)** con la versión `1.0.0`
+   ([codemagic.md, "Lanzar una compilación"](codemagic.md#lanzar-una-compilación)). Tarda de 15 a 25 minutos.
+2. Al terminar, la compilación aparece en App Store Connect → **Marea → TestFlight** como *Procesando*
+   (de 5 a 30 minutos; Apple te manda un correo cuando está lista).
+3. **Cumplimiento de exportación**: ya está resuelto en el proyecto (la app no usa cifrado propio), así que no
    debería preguntarte nada.
-3. **Pruebas internas → +** → crea un grupo (p. ej. "Equipo") → agrégate (y a otras personas de tu equipo de
-   App Store Connect, hasta 100).
-4. En tu iPhone instala **TestFlight** desde la App Store → acepta la invitación → instala Marea.
-   Cada compilación de TestFlight dura 90 días.
 
-### 8. Ficha de la App Store
+## 4. Probar en tu iPhone con TestFlight
 
-App Store Connect → Marea → pestaña **App Store**:
+1. **TestFlight → Pruebas internas → +** → crea un grupo (p. ej. "Equipo") y agrégate (y a quien quieras de tu
+   equipo de App Store Connect, hasta 100 personas).
+2. Agrega la compilación al grupo (o activa la distribución automática del grupo).
+3. En tu iPhone instala **TestFlight** desde la App Store → acepta la invitación → instala Marea.
+4. Revisa con una cuenta de prueba (modo real, no el demo):
+   - Iniciar sesión, reservar y cancelar una clase.
+   - El aviso de recordatorios al reservar y la notificación del sistema (acéptala). En **Perfil →
+     Recordatorios de clases** debe decir «Activados».
+   - **Perfil**: código QR, enlace al aviso de privacidad y **Eliminar mi cuenta** (pruébalo con una cuenta
+     que no vayas a darle al revisor).
+   - Un enlace `marea://alumno/reservas` (escríbelo en Notas y tócalo): debe abrir Marea en *Mis reservas*.
+5. Cada compilación de TestFlight dura 90 días.
 
-- **Información de la app**: subtítulo (hasta 30 caracteres, p. ej. "Reserva tus clases de yoga"), categoría
-  principal **Salud y forma física**, secundaria **Estilo de vida**; **clasificación por edad**: responde el
-  cuestionario (todo "No"); URL de la política de privacidad.
+## 5. Capturas de pantalla
+
+Para Marea basta con dos tamaños; App Store Connect reduce las capturas para las pantallas más chicas:
+
+| Casilla en App Store Connect | Tamaño (vertical) | Cómo sacarlas |
+|---|---|---|
+| **iPhone 6.9"** | 1320 × 2868 (también acepta 1290 × 2796) | Con un iPhone Pro Max (16 o 17; el 15 Pro Max da 1290 × 2796): botón lateral + subir volumen |
+| **iPad 13"** (obligatoria porque la app funciona en iPad) | 2064 × 2752 (también acepta 2048 × 2732) | Con un iPad Pro o iPad Air de 13" |
+
+- De 3 a 5 capturas por tamaño (máximo 10): horario, reservar una clase, mis reservas, paquetes y el código QR.
+  PNG o JPG, **sin transparencias**. Las capturas deben mostrar la app en uso (no solo la pantalla de acceso).
+- **Si tu iPhone no es Pro Max** (p. ej. iPhone 15, 16 o 17), sus capturas sirven para la casilla
+  **iPhone 6.3"** (1179 × 2556 o 1206 × 2622), que es la obligatoria; súbelas ahí.
+- **Sin el aparato a la mano**: la interfaz de la app es la misma que la de la web. En Chrome abre
+  https://marea-navy.vercel.app e inicia sesión con la cuenta de prueba → menú **⋮ → Más herramientas →
+  Herramientas para desarrolladores** → ícono de teléfono (*Toggle device toolbar*). En la barra que aparece
+  arriba de la página elige **Responsive**, abre su menú **⋮ → Add device pixel ratio** y escribe:
+  - iPhone 6.9": **440 × 956**, *DPR* **3** → sale de 1320 × 2868.
+  - iPad 13": **1032 × 1376**, *DPR* **2** → sale de 2064 × 2752.
+
+  Luego, en ese mismo menú **⋮ → Capture screenshot**. La imagen no incluye las barras del navegador.
+
+## 6. Ficha de la App Store
+
+App Store Connect → Marea:
+
+- **Información de la app**: subtítulo (hasta 30 caracteres, p. ej. "Reserva tus clases de yoga"),
+  categoría principal **Salud y forma física**, secundaria **Estilo de vida**.
+- **URL de la política de privacidad**: `https://marea-navy.vercel.app/privacidad`.
 - **Precio y disponibilidad**: **Gratis**; países: México (y los que quieras).
-- **Versión 1.0 (Preparar para envío)**:
+- **Versión 1.0.0 (Preparar para envío)**:
   - Capturas de iPhone y de iPad (paso 5).
-  - Texto promocional, **descripción** (qué puede hacer el alumno y que los paquetes se pagan en el estudio),
-    **palabras clave** (hasta 100 caracteres, separadas por comas: `yoga,clases,reservas,estudio,meditación,…`),
-    **URL de soporte** (obligatoria) y copyright (`2026 Tu nombre`).
-  - **Compilación**: botón **+** → elige la que subiste.
-  - **Información para la revisión de la app**: marca *Se requiere inicio de sesión* y escribe el **correo y la
-    contraseña de la cuenta de prueba**, tus datos de contacto y las **notas** del paso 10.
+  - **Descripción**: qué es el estudio, qué puede hacer el alumno (ver el horario, reservar y cancelar, lista de
+    espera, reservar para un amigo, ver su paquete y créditos, código QR para el check-in, recordatorio 1 hora
+    antes de cada clase) y que **los paquetes se pagan en el estudio**. No anuncies funciones que todavía no
+    existen (pago en línea).
+  - **Palabras clave** (hasta 100 caracteres, separadas por comas): `yoga,clases,reservas,estudio,meditación,pilates,horario`.
+  - **URL de soporte** (obligatoria): `https://marea-navy.vercel.app/soporte`.
+  - **Copyright**: `2026 [tu nombre legal]`.
+  - **Compilación**: botón **+** → elige la que subió Codemagic.
 
-### 9. Privacidad de la app (App Privacy)
+## 7. Clasificación por edad
 
-App Store Connect → Marea → **Privacidad de la app** → **Comenzar**:
+App Store Connect → Marea → **Información de la app → Clasificación por edad → Editar**. Respuestas para Marea:
 
-| Tipo de dato | Ejemplo en Marea |
+| Pregunta | Respuesta |
 |---|---|
-| Información de contacto → Nombre, Correo electrónico, Número de teléfono | Perfil del alumno |
-| Compras → Historial de compras | Paquetes |
-| Identificadores → ID de usuario | Cuenta |
-| Otros datos | Reservas, asistencias, cumpleaños (si se captura) |
-| Salud *(solo si el estudio anota lesiones o condiciones en las notas del alumno)* | Notas del alumno |
+| Controles parentales / Verificación de edad | No |
+| Acceso web sin restricciones | No (la app no tiene navegador propio) |
+| Contenido generado por los usuarios / Redes sociales / Mensajes o chat | No |
+| Publicidad | No |
+| Temas médicos o de tratamiento | No |
+| **Temas de salud o bienestar** (recomendaciones de ejercicio o estilo de vida) | **Sí**: es una app de yoga y las descripciones de las clases hablan de ejercicio |
+| Violencia, sexo, lenguaje, drogas, apuestas, terror, etc. | No |
 
-Para cada uno: uso **Funcionalidad de la app**; **vinculado a la identidad: Sí**; **rastreo (tracking): No**.
-Al final, **Publicar**.
+Resultado esperado: **9+**. Es correcto para una app de yoga; responder "No" a salud o bienestar y que el revisor
+opine otra cosa cuesta una ronda de revisión.
 
-### 10. Notas para el revisor (copiar y pegar)
+## 8. Privacidad de la app (App Privacy)
 
-Los revisores leen inglés. Rellena lo que está entre corchetes y **borra cualquier punto que todavía no esté en
-la versión que envías**. Los recordatorios (1 h antes de cada clase reservada; la app pide permiso la primera vez
-que reservas) y la vibración al reservar ya están conectados; compruébalos en tu iPhone con TestFlight antes de enviar.
+App Store Connect → Marea → **Privacidad de la app** → **Comenzar**. Responde "Sí, recopilamos datos" y marca
+esto (es lo mismo que dice el aviso de privacidad y lo que declaras en Google Play):
+
+| Tipo de dato | Qué es en Marea | Para qué (finalidades) |
+|---|---|---|
+| Información de contacto → **Nombre** | Nombre del alumno (y del invitado, si reserva para alguien) | Funcionalidad de la app; Publicidad o marketing del desarrollador |
+| Información de contacto → **Correo electrónico** | Correo de la cuenta | Funcionalidad de la app; Publicidad o marketing del desarrollador |
+| Información de contacto → **Número de teléfono** | Opcional | Funcionalidad de la app; Publicidad o marketing del desarrollador |
+| Salud y forma física → **Salud** | Solo si el estudio anota una lesión o condición que el alumno comparte | Funcionalidad de la app |
+| Compras → **Historial de compras** | Paquetes, montos, forma y estado del pago | Funcionalidad de la app; Analíticas |
+| Identificadores → **ID de usuario** | Identificador de la cuenta | Funcionalidad de la app |
+| Otros datos → **Otros tipos de datos** | Reservaciones, asistencias, lugar en el salón y cumpleaños (opcional) | Funcionalidad de la app; Analíticas |
+
+Para cada uno: **vinculado a la identidad: Sí**; **se usa para rastreo (tracking): No**. Al final, **Publicar**.
+
+- "Publicidad o marketing del desarrollador" va porque el aviso de privacidad dice que el estudio puede mandarte
+  novedades, promociones y felicitaciones de cumpleaños. "Analíticas" va por las estadísticas internas. Si un día
+  se quitan esas finalidades del aviso, quítalas aquí también.
+- No marques ubicación, contactos, fotos, diagnósticos ni identificadores de publicidad: la app no los usa.
+
+## 9. Información para la revisión
+
+App Store Connect → Marea → versión 1.0.0 → **Información para la revisión de la app**:
+
+- Marca **Se requiere inicio de sesión** y escribe el correo y la contraseña de la **cuenta de prueba 1**.
+- Tus datos de contacto (nombre, teléfono, correo).
+- **Notas**: copia el texto de abajo (los revisores leen inglés). Rellena lo que está entre corchetes y **borra
+  cualquier frase que no coincida con lo que viste en TestFlight** (paso 4).
 
 ```text
-Marea is the booking app of [studio name], a yoga studio in [city], Mexico. All classes take place in person at the studio.
+Marea is the booking app of [studio name], a yoga studio in [city], Mexico. All classes take place in person at the studio. The app is published by [your legal name], [owner / authorized representative] of the studio.
 
-Demo account (student, with an active class package):
-  Email: [correo]
-  Password: [contraseña]
+Demo accounts (students with an active class package):
+  Account 1: [email] / [password]
+  Account 2 (spare; feel free to delete it to test account deletion): [email] / [password]
 
-Payments (Guideline 3.1.3(e)): students buy class packages for in-person classes that are consumed outside the app, at the physical studio. The app sells no digital content. Today a package is reserved in the app and paid at the studio's front desk. When online payment is enabled, Mercado Pago's checkout will open in Safari View Controller and return to the app through the marea:// URL scheme.
+Payments (Guideline 3.1.3(e)): students reserve class packages for in-person classes that are consumed at the physical studio, outside the app. The app sells no digital content and has no in-app payments: packages are paid at the studio's front desk.
 
-Account deletion (Guideline 5.1.1(v)): Mi perfil (Profile) > Eliminar cuenta (Delete account) permanently deletes the account and its personal data.
+Account deletion (Guideline 5.1.1(v)): Perfil (Profile) > Eliminar mi cuenta (Delete my account), then type ELIMINAR to confirm. Teachers have the same option in Perfil, and administrators in Menú (Menu) > Mi cuenta (My account). The privacy policy and the support page are linked on the sign-up screen and in the profile.
 
-App functionality (Guideline 4.2): the interface is bundled in the app, not loaded from a website. Native features: local notifications that remind students of each booked class 1 hour before it starts, haptic feedback when a booking is confirmed, a QR check-in code for the front desk, marea:// deep links (notifications and payment returns) and data refresh when the app returns to the foreground.
+Native features (Guideline 4.2): the interface is bundled in the app, not loaded from a website. The app schedules local notifications that remind students of each booked class 1 hour before it starts (it asks for notification permission after the first booking), gives haptic feedback when a booking is confirmed, shows a QR check-in code for the front desk, opens specific screens through the marea:// URL scheme and refreshes the data when it returns to the foreground.
 
-The app is in Spanish. "Ver demo con datos de ejemplo" on the sign-in screen opens a local demo with sample data; any online payment inside that demo is simulated and charges nothing.
+The app is in Spanish. "Ver demo con datos de ejemplo" on the sign-in screen opens a demo with sample data stored only on this device.
 ```
 
-### 11. Enviar a revisión
+## 10. Enviar a revisión
 
 1. Revisa que no falte nada (App Store Connect marca en rojo lo pendiente).
 2. **Agregar para revisión → Enviar a la revisión de apps**. Suele tardar uno o dos días.
-3. Si Apple pide cambios, el mensaje llega a App Store Connect; contesta ahí mismo.
+3. Si Apple pide cambios o documentos (por ejemplo, la prueba de que eres dueño de la marca, ver
+   [Antes de empezar](#antes-de-empezar)), el mensaje llega a App Store Connect; contesta ahí mismo.
+4. Cuando la aprueben, publícala (o deja que se publique sola si elegiste esa opción).
 
----
+## Versiones siguientes
 
-## Compilar en la nube (sin Mac)
+1. Lanza **ios-testflight** en Codemagic con una versión mayor (`1.0.1`, `1.1.0`…). El número de compilación sube solo.
+2. En App Store Connect → **+ Versión** con el mismo número, elige la compilación nueva, escribe "Novedades" y envía.
+3. Antes de cada envío, revisa que las dos cuentas de prueba sigan existiendo y tengan créditos.
 
-El workflow **iOS (TestFlight)** de GitHub compila en una Mac de GitHub (la más reciente, con el Xcode estable
-más nuevo) y sube a TestFlight. Hay que prepararlo **una vez**:
-
-### Crear la llave de la API de App Store Connect
-
-1. https://appstoreconnect.apple.com → **Usuarios y acceso** → pestaña **Integraciones** → **App Store Connect API**.
-2. Si es la primera vez: **Solicitar acceso** (solo el titular de la cuenta, que eres tú) → acepta los términos
-   → **Enviar**. Apple lo aprueba caso por caso.
-3. Sección **Claves del equipo** → **Generar clave de API** (o **+**) → nombre `GitHub Actions` → acceso
-   **Admin** → **Generar**.
-   - **¿Por qué Admin?** El workflow firma con el certificado de distribución que Apple guarda en la nube; con
-     roles menores, Apple rechaza esa firma ("Cloud signing permission error"). Por lo mismo, esta llave es
-     poderosa: trátala como contraseña.
-   - Si ya tienes una llave para Codemagic (Bacco) con rol Admin, puedes usar esa; si no es Admin, crea esta.
-4. **Descargar** la llave: el archivo `AuthKey_XXXXXXXXXX.p8` **solo se puede descargar una vez**. Anota el
-   **ID de la clave** (columna *Key ID*) y el **Issuer ID** (arriba de la lista).
-
-### Guardar los secretos en GitHub
-
-1. En la Mac, en Terminal: `base64 -i ~/Downloads/AuthKey_XXXXXXXXXX.p8 | pbcopy` (queda copiado).
-   (También puedes abrir el `.p8` con TextEdit y copiar todo el texto: el workflow acepta las dos formas.)
-2. GitHub → **Settings → Secrets and variables → Actions → New repository secret**, cuatro veces:
-   - `APP_STORE_CONNECT_KEY_ID` → el Key ID.
-   - `APP_STORE_CONNECT_ISSUER_ID` → el Issuer ID.
-   - `APP_STORE_CONNECT_KEY_P8_BASE64` → lo que copiaste.
-   - `APPLE_TEAM_ID` → tu Team ID (developer.apple.com/account → Membresía).
-3. Guarda el `.p8` en tu gestor de contraseñas y bórralo de *Descargas*.
-
-### Correrlo
-
-1. **Actions → iOS (TestFlight) → Run workflow**. *Versión*: vacío (usa la del proyecto) o, p. ej., `1.0.1`.
-   Deja marcado **Subir a TestFlight** → **Run workflow**. Tarda de 15 a 25 minutos.
-2. Al terminar, el resumen dice la versión y el número de compilación; en 5 a 30 minutos aparece en TestFlight.
-3. Requisito: la app ya debe existir en App Store Connect (paso 4 de "Antes del lunes").
-
-Detalles:
-
-- El **número de compilación** es la fecha y hora (UTC) en formato `AAAAMMDD.HHMM`, p. ej. `20261110.1530`:
-  siempre es mayor que el anterior y que las compilaciones subidas a mano (1, 2, 3…). Si después subes desde
-  Xcode, deja marcada la opción de administrar el número de compilación para que Xcode elija uno mayor.
-- Si falla la firma, el workflow explica la causa más común (rol de la llave, app no creada, acuerdo
-  pendiente). Opciones: correrlo con **Firmar también el .xcarchive** marcado; desmarcar *Subir a TestFlight*
-  para obtener el `.ipa` en *Artifacts* y subirlo con la app **Transporter** de Apple; o compilar en la Mac o
-  en Codemagic.
-- La subida la hace el mismo `xcodebuild` (lo que usa Xcode al distribuir). No se usa `altool --upload-app`,
-  que Apple marcó como obsoleto.
-- En repositorios privados, las Mac de GitHub gastan los minutos gratis del mes mucho más rápido que Linux.
+> **Opcional: compilar en una Mac.** No hace falta, pero si algún día quieres usar Xcode (26 o más reciente):
+> `npm ci && npm run cap:ios` abre el proyecto. Al distribuir deja marcada la opción de administrar la versión y el
+> número de compilación; Codemagic después usa un número mayor al de TestFlight, así que las dos vías conviven.
 
 ## Fuentes (consultadas el 7 de noviembre de 2026)
 
-- Tamaños de capturas: https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications
-- Subir compilaciones (versiones de Xcode aceptadas, altool, Transporter): https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds
-- Versiones de Xcode y macOS necesarias: https://developer.apple.com/xcode/system-requirements/
-- Llaves de la API de App Store Connect: https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api
+- Vendedor = nombre legal en cuentas individuales; nombre de la organización con D-U-N-S: https://developer.apple.com/programs/enroll/
+- Reglas de revisión (2.1 cuenta de prueba, 3.1.3(e), 4.2, 5.1.1(v), 5.2.1): https://developer.apple.com/app-store/review/guidelines/
+- Tamaños y casillas obligatorias de capturas: https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications
+- Clasificación por edad ("Health or Wellness Topics" → 9+): https://developer.apple.com/help/app-store-connect/reference/age-ratings
+- Xcode 26 obligatorio desde el 28 de abril de 2026: https://developer.apple.com/news/upcoming-requirements/
 - Crear la app: https://developer.apple.com/help/app-store-connect/create-an-app-record/add-a-new-app
 - Probadores internos de TestFlight: https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers
 - Privacidad de la app: https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy
-- Reglas de revisión (2.1 cuenta de prueba, 3.1.3(e), 4.2, 5.1.1(v)): https://developer.apple.com/app-store/review/guidelines/
 - Eliminación de cuenta dentro de la app: https://developer.apple.com/support/offering-account-deletion-in-your-app/
-- Firma en la nube con llave API (requiere rol Admin; reporte en los foros de Apple): https://developer.apple.com/forums/thread/690676
-- Mac de GitHub (`macos-latest` = macOS 26): https://github.com/actions/runner-images
+- Publicar en App Store Connect desde Codemagic: https://docs.codemagic.io/yaml-publishing/app-store-connect/

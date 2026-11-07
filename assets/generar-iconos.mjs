@@ -1,6 +1,9 @@
 // Genera las imágenes fuente del ícono y la pantalla de inicio de la app nativa de Marea.
 //
-//   node assets/generar-iconos.mjs        → escribe los PNG fuente en assets/
+//   node assets/generar-iconos.mjs        → escribe los PNG fuente en assets/ (y los de la tienda)
+//   node assets/generar-iconos.mjs --tienda → solo las imágenes de la ficha de Google Play:
+//                                           play-icon-512.png (ícono 512 × 512) y
+//                                           play-feature-1024x500.png (gráfico de funciones)
 //   npm run assets                        → además genera todos los tamaños para iOS y Android
 //                                           (npx @capacitor/assets generate) y luego corre
 //                                           este script con --despues para los retoques finales.
@@ -67,8 +70,53 @@ function despues() {
   }
 }
 
+/**
+ * Imágenes de la ficha de Google Play (las pide Play Console; no van dentro de la app):
+ *  - play-icon-512.png: el mismo ícono de la app reducido a 512 × 512, PNG sin transparencia.
+ *  - play-feature-1024x500.png: gráfico de funciones obligatorio (1024 × 500, sin transparencia).
+ */
+async function tienda() {
+  const fuente = join(DIR, "icon-only.png");
+  const icono = existsSync(fuente) ? readFileSync(fuente) : svg(1024, logo("#fff"), MARCA);
+  await sharp(icono)
+    .resize(512, 512, { fit: "cover" })
+    .flatten({ background: MARCA })
+    .removeAlpha()
+    .png({ compressionLevel: 9 })
+    .toFile(join(DIR, "play-icon-512.png"));
+  console.log("✓ play-icon-512.png");
+
+  // Olas suaves de fondo, el logotipo a la izquierda y el nombre con una frase corta.
+  // Todo lo importante queda lejos de las orillas (Google puede recortarlas o poner el botón de video encima).
+  const olas = [0, 1, 2]
+    .map((i) => {
+      const y = 380 + i * 42;
+      return `<path d="M-40 ${y} q64 -30 128 0 t128 0 t128 0 t128 0 t128 0 t128 0 t128 0 t128 0 t128 0" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-opacity="${0.1 - i * 0.025}"/>`;
+    })
+    .join("");
+  const texto = (y, size, weight, contenido, opacidad = 1) =>
+    `<text x="408" y="${y}" font-family="Inter, 'Helvetica Neue', Arial, sans-serif" font-size="${size}" font-weight="${weight}" fill="#fff" fill-opacity="${opacidad}">${contenido}</text>`;
+  const feature = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">` +
+      `<rect width="1024" height="500" fill="${MARCA}"/>` +
+      olas +
+      `<g transform="translate(214 236) scale(0.42) translate(-512 -512)">${logo("#fff")}</g>` +
+      texto(222, 96, 700, "Marea") +
+      texto(286, 36, 500, "Reserva tus clases de yoga", 0.95) +
+      texto(336, 26, 400, "Horario · Paquetes · Check-in con tu código", 0.8) +
+      `</svg>`,
+  );
+  await sharp(feature).removeAlpha().png({ compressionLevel: 9 }).toFile(join(DIR, "play-feature-1024x500.png"));
+  console.log("✓ play-feature-1024x500.png");
+}
+
 if (process.argv.includes("--despues")) {
   despues();
+  process.exit(0);
+}
+
+if (process.argv.includes("--tienda")) {
+  await tienda();
   process.exit(0);
 }
 
@@ -82,3 +130,5 @@ await png("icon-background.png", svg(1024, "", MARCA));
 await png("splash.png", svg(2732, `<g transform="translate(1366 1366) scale(1.3) translate(-512 -512)">${logo(MARCA)}</g>`, FONDO));
 // La app solo tiene tema claro: en modo oscuro se usa la misma pantalla de inicio.
 await png("splash-dark.png", svg(2732, `<g transform="translate(1366 1366) scale(1.3) translate(-512 -512)">${logo(MARCA)}</g>`, FONDO));
+// Imágenes de la ficha de Google Play (a partir del ícono recién generado).
+await tienda();

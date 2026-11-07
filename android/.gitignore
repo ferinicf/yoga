@@ -53,10 +53,14 @@ captures/
 .idea/navEditor.xml
 
 # Keystore files
-# La llave de subida de Google Play NUNCA va al repositorio (se guarda en un gestor de contraseñas).
+# La llave de subida de Google Play NUNCA va al repositorio (vive en Codemagic y en tu gestor de contraseñas).
 *.jks
 *.keystore
+*.p8
+*.p12
+*.mobileprovision
 keystore.properties
+key.properties
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild

@@ -27,7 +27,8 @@ export default function DeleteAccountPage() {
         <ol className="list-decimal space-y-1.5 pl-5">
           <li>Abre la app {STUDIO_NAME} e inicia sesión.</li>
           <li>
-            Entra a <strong className="font-medium">Perfil</strong>.
+            Entra a <strong className="font-medium">Perfil</strong>. Si administras el estudio, abre el{" "}
+            <strong className="font-medium">Menú</strong> y entra a <strong className="font-medium">Mi cuenta</strong>.
           </li>
           <li>
             Al final de la pantalla, toca <strong className="font-medium">Eliminar mi cuenta</strong>.
@@ -40,8 +41,9 @@ export default function DeleteAccountPage() {
         <p>Tu cuenta se elimina en ese momento y ya no podrás iniciar sesión con ella. También funciona en la web.</p>
         <ProfileShortcut />
         <p className="text-muted">
-          Si das clases o administras el estudio y no ves esta opción en tu perfil, pide la baja por correo: tus clases y pagos
-          están ligados a tu cuenta y la administración los reasigna antes de eliminarla.
+          Si das clases o administras el estudio, también puedes eliminar tu cuenta así. Si eres la única persona con acceso de
+          administración, primero agrega a otra en Configuración → Administradores, para que el estudio no se quede sin nadie
+          que lo administre.
         </p>
       </LegalSection>
 
@@ -64,7 +66,7 @@ export default function DeleteAccountPage() {
         </EmailButton>
       </LegalSection>
 
-      <LegalSection id="se-borra" title="Qué se borra">
+      <LegalSection id="se-borra" title="Qué se borra si tomas clases">
         <ul className={list}>
           <li>Tu nombre, correo, teléfono y cumpleaños, tu código de acceso y las notas que el estudio tenga sobre ti.</li>
           <li>Tu usuario de acceso: ya no podrás iniciar sesión y se cierran tus sesiones.</li>
@@ -73,9 +75,21 @@ export default function DeleteAccountPage() {
             cancelan sin devolver créditos y el lugar pasa a la siguiente persona en la lista de espera.
           </li>
           <li>
-            Tus paquetes y los créditos que te queden. Si tienes un paquete vigente, úsalo antes o habla con el estudio.
+            Tus paquetes y los créditos que te queden. Si tienes un paquete vigente, úsalo antes o habla con el estudio. Los
+            paquetes que apartaste y aún no pagas se anulan.
           </li>
           <li>Los recordatorios de clases que la app programó en el teléfono donde eliminas la cuenta.</li>
+        </ul>
+      </LegalSection>
+
+      <LegalSection id="personal" title="Si das clases o administras el estudio">
+        <ul className={list}>
+          <li>Se borra tu usuario de acceso: ya no podrás iniciar sesión y se cierran tus sesiones en todos tus dispositivos.</li>
+          <li>
+            Tu nombre se queda en el historial de las clases que diste, de las ventas y de los pagos, porque el estudio lo
+            necesita para su contabilidad. Lo que el estudio te deba por clases ya dadas no se pierde.
+          </li>
+          <li>Si administras el estudio, tu correo sale de la lista de administradores.</li>
         </ul>
       </LegalSection>
 

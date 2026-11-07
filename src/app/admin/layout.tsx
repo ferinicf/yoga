@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import {
   CalendarDays,
+  CircleUserRound,
   Cog,
   Dumbbell,
   GraduationCap,
@@ -26,6 +27,8 @@ const NAV: NavItem[] = [
   { href: "/admin/planes", label: "Planes y precios", icon: Tag },
   { href: "/admin/cupones", label: "Cupones", icon: Ticket },
   { href: "/admin/configuracion", label: "Configuración", icon: Cog },
+  // Solo en el menú (no en la barra inferior del celular): datos propios, privacidad y eliminar la cuenta.
+  { href: "/admin/cuenta", label: "Mi cuenta", icon: CircleUserRound },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {

@@ -24,6 +24,21 @@
 .DS_Store
 *.pem
 
+# llaves y certificados de las tiendas: NUNCA van al repositorio (viven en Codemagic y en tu gestor de contraseñas)
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+*.provisionprofile
+*.cer
+*.certSigningRequest
+keystore.properties
+key.properties
+LEEME-llave.txt
+ios_distribution_private_key*
+*service-account*.json
+
 # debug
 npm-debug.log*
 yarn-debug.log*

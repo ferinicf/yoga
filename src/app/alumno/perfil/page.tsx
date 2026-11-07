@@ -9,7 +9,8 @@ import { creditsLeft } from "@/lib/rules";
 import { fmt, formatMoney, PAYMENT_LABEL } from "@/lib/utils";
 import { toast, toastResult } from "@/components/toast";
 import { Avatar, Badge, Button, Card, Field, Input, PageHeader, phoneError, phoneInputProps } from "@/components/ui";
-import { DeleteAccount } from "@/components/delete-account";
+import { DeleteAccount, PrivacyLink } from "@/components/delete-account";
+import { RemindersSetting } from "@/components/reminders-setting";
 
 export default function ProfilePage() {
   const db = useDB();
@@ -164,6 +165,9 @@ export default function ProfilePage() {
         </Card>
       </section>
 
+      {/* Solo en la app de iPhone/Android: estado de las notificaciones y botón para activarlas. */}
+      <RemindersSetting />
+      <PrivacyLink />
       <DeleteAccount />
     </div>
   );

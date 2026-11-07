@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 import { Toaster, toast } from "./toast";
@@ -58,6 +59,14 @@ export function brandText(hex: string): string {
 }
 
 /**
+ * Páginas públicas (aviso de privacidad, eliminar la cuenta y soporte): no esperan al arranque, así
+ * su texto ya viene en el HTML (export estático y Vercel) y se lee sin JavaScript (revisores de las
+ * tiendas, buscadores). No dependen de los datos guardados: antes de arrancar usan los datos fijos
+ * de src/lib/legal.ts, iguales en el servidor y en el cliente.
+ */
+const PUBLIC_PAGE = /^\/(privacidad|eliminar-cuenta|soporte)(\/|$)/;
+
+/**
  * Arranque de la app:
  *  - modo demo: carga los datos de ejemplo guardados en este dispositivo;
  *  - modo real: recupera la sesión de Supabase y descarga los datos visibles para el usuario.
@@ -66,6 +75,8 @@ export function Providers({ children }: { children: ReactNode }) {
   const hydrated = useStore((s) => s.hydrated);
   const mode = useStore((s) => s.mode);
   const brand = useStore((s) => s.db.settings.brandColor);
+  const pathname = usePathname();
+  const ready = hydrated || PUBLIC_PAGE.test(pathname ?? "");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -132,26 +143,28 @@ export function Providers({ children }: { children: ReactNode }) {
     }
   };
 
-  if (!hydrated) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-stone-300 border-t-stone-700" />
-      </div>
-    );
-  }
   return (
     <>
-      {error && (
-        <div role="alert" title={error} className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-red-600 px-4 pb-2 pt-safe-2 text-center text-sm text-white">
-          <span>No pudimos conectar con el servidor. Revisa tu conexión a internet.</span>
-          <button type="button" onClick={retry} className="min-h-10 rounded-lg px-2 font-semibold underline underline-offset-2">
-            Reintentar
-          </button>
+      {!ready ? (
+        <div className="flex min-h-dvh items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-stone-300 border-t-stone-700" />
         </div>
+      ) : (
+        <>
+          {error && (
+            <div role="alert" title={error} className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-red-600 px-4 pb-2 pt-safe-2 text-center text-sm text-white">
+              <span>No pudimos conectar con el servidor. Revisa tu conexión a internet.</span>
+              <button type="button" onClick={retry} className="min-h-10 rounded-lg px-2 font-semibold underline underline-offset-2">
+                Reintentar
+              </button>
+            </div>
+          )}
+          {children}
+          <Toaster />
+        </>
       )}
-      {children}
-      <Toaster />
-      {/* Confirmaciones en español (en la app, window.confirm sale con botones en inglés). */}
+      {/* Confirmaciones en español (en la app, window.confirm sale con botones en inglés). Montado
+          desde el arranque, para que nunca se use el diálogo de la plataforma. */}
       <ConfirmHost />
     </>
   );

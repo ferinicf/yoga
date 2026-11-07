@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es-MX"className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="es-MX" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
       <body className="min-h-dvh">
         <NativeBridge />
         <Providers>{children}</Providers>

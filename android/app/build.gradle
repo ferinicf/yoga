@@ -1,5 +1,17 @@
 apply plugin: 'com.android.application'
 
+// Versión de la app. Codemagic (codemagic.yaml → android-play) pasa -PmareaVersionCode=… y
+// -PmareaVersionName=…; Google Play rechaza un versionCode repetido o menor. En Android Studio o en una
+// compilación local sin esos parámetros quedan 1 y "1.0.0".
+def mareaVersionCode = (project.findProperty("mareaVersionCode") ?: "1").toString().trim().toInteger()
+def mareaVersionName = (project.findProperty("mareaVersionName") ?: "1.0.0").toString().trim()
+
+// Llave de subida de Google Play. Codemagic la entrega en estas variables cuando el flujo tiene
+// android_signing (docs/codemagic.md). Sin ellas, la versión release sale SIN firmar (sirve para
+// probar en local, pero Google Play no la acepta). La llave nunca va en el repositorio.
+def cmKeystorePath = System.getenv("CM_KEYSTORE_PATH")
+def hasUploadKey = cmKeystorePath != null && !cmKeystorePath.trim().isEmpty() && file(cmKeystorePath).exists()
+
 android {
     namespace = "mx.marea.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,12 +19,8 @@ android {
         applicationId "mx.marea.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
-        // La nube (Codemagic, GitHub Actions) pasa -PmareaVersionCode=… y -PmareaVersionName=…:
-        // Google Play rechaza un versionCode repetido. En Android Studio quedan los valores de arriba.
-        if (project.hasProperty("mareaVersionCode")) versionCode(project.property("mareaVersionCode").toString().toInteger())
-        if (project.hasProperty("mareaVersionName")) versionName(project.property("mareaVersionName").toString())
+        versionCode mareaVersionCode
+        versionName mareaVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -20,8 +28,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasUploadKey) {
+                storeFile file(cmKeystorePath)
+                storePassword System.getenv("CM_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("CM_KEY_ALIAS")
+                keyPassword System.getenv("CM_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
+            if (hasUploadKey) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

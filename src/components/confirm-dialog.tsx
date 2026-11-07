@@ -34,8 +34,6 @@ interface Request extends ConfirmOptions {
 const useConfirmQueue = create<{ queue: Request[] }>(() => ({ queue: [] }));
 
 let seq = 0;
-/** Cuántos <ConfirmHost/> hay montados (debería ser uno). */
-let hosts = 0;
 
 /** Responde una pregunta y la quita de la fila (si se toca dos veces, la segunda no hace nada). */
 function settle(req: Request, ok: boolean) {
@@ -49,8 +47,8 @@ function settle(req: Request, ok: boolean) {
  */
 export function confirmar(opts: ConfirmOptions): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
-  // Sin el diálogo montado (no debería pasar: <Providers> lo monta), el de la plataforma.
-  if (hosts === 0) return Promise.resolve(window.confirm([opts.title, opts.message].filter(Boolean).join("\n\n")));
+  // Se forma en la fila; <ConfirmHost/> (montado desde el arranque en <Providers>) la muestra. Nunca
+  // se usa el diálogo de la plataforma.
   return new Promise((resolve) => {
     useConfirmQueue.setState((s) => ({ queue: [...s.queue, { ...opts, id: ++seq, resolve }] }));
   });
@@ -68,13 +66,6 @@ export function ConfirmHost() {
   const current = useConfirmQueue((s) => s.queue[0]);
   const box = useRef<HTMLDivElement>(null);
   const messageId = useId();
-
-  useEffect(() => {
-    hosts++;
-    return () => {
-      hosts--;
-    };
-  }, []);
 
   useEffect(() => {
     if (!current) return;
