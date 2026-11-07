@@ -53,10 +53,9 @@ de prueba y "Eliminar mi cuenta".
   - Aviso de privacidad: https://marea-navy.vercel.app/privacidad
   - Eliminar la cuenta: https://marea-navy.vercel.app/eliminar-cuenta
   - Soporte: https://marea-navy.vercel.app/soporte
-- [ ] **Tus datos en el aviso de privacidad.** La ley mexicana pide decir quién es el responsable de los datos.
-  Dale al desarrollador tu **nombre legal completo** (va en `src/lib/legal.ts`, `RESPONSIBLE_NAME`) y llena el
-  domicilio y el teléfono del estudio en **Admin → Configuración**. Mientras tu nombre esté vacío, las páginas
-  muestran "Marea".
+- [x] **Tus datos en el aviso de privacidad.** Responsable: Fernando Francisco Coronado Ferrer; domicilio: Calle
+  Shambala S/N, Hotel Noga, Col. Roca Blanca, Zipolite, San Pedro Pochutla, Oaxaca, C.P. 70902 (en `src/lib/legal.ts`
+  y en **Admin → Configuración**). Falta solo el teléfono/WhatsApp del estudio, si quieres que aparezca en Soporte.
 - [ ] **Enlace al aviso dentro de la app**: ya está en la pantalla de acceso (al crear la cuenta), en **Perfil**
   (alumnos y profesores) y en **Menú → Mi cuenta** (administración), junto con **Ayuda y soporte**.
   Revísalo una vez en el teléfono.

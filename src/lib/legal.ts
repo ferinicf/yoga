@@ -9,11 +9,11 @@ import type { Settings } from "./types";
 
 export const STUDIO_NAME = "Marea";
 export const CONTACT_EMAIL = "desarrolladorfero@gmail.com";
-/**
- * Nombre completo (persona física) o razón social del responsable de los datos personales.
- * Pendiente: lo completa el dueño. Mientras esté vacío, las páginas muestran el nombre del estudio.
- */
-export const RESPONSIBLE_NAME = "";
+/** Nombre completo (persona física) o razón social del responsable de los datos personales. */
+export const RESPONSIBLE_NAME = "Fernando Francisco Coronado Ferrer";
+/** Domicilio del responsable (LFPDPPP). Si en Configuración hay otra dirección, se usa esa. */
+export const STUDIO_ADDRESS =
+  "Calle Shambala S/N, Hotel Noga, Col. Roca Blanca, Zipolite, San Pedro Pochutla, Oaxaca, C.P. 70902";
 
 /** Dirección pública de la web (la que se registra en App Store Connect y Play Console). */
 export const PUBLIC_SITE_URL = "https://marea-navy.vercel.app";
@@ -60,7 +60,7 @@ function isPlaceholderPhone(digits: string) {
 export function studioContact(settings: Pick<Settings, "studioName" | "address" | "phone" | "whatsapp" | "instagram"> | null): StudioContact {
   const studioName = settings?.studioName?.trim() || STUDIO_NAME;
   const rawAddress = (settings?.address ?? "").trim();
-  const address = /ejemplo/i.test(rawAddress) ? "" : rawAddress;
+  const address = (/ejemplo/i.test(rawAddress) ? "" : rawAddress) || STUDIO_ADDRESS;
 
   const rawPhone = (settings?.phone ?? "").trim();
   const phoneDigits = rawPhone.replace(/\D/g, "");
