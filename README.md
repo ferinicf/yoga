@@ -27,7 +27,7 @@ La app está conectada al proyecto Supabase **Marea** (organización "yoga y pil
 - **Seguridad:** las reglas (créditos, límites, cancelaciones, lista de espera, pagos) se aplican en funciones de la base; las políticas RLS impiden que un alumno vea datos de otros o se dé créditos.
 - **Pagos:** todavía no hay pasarela; lo que compra un alumno queda *pendiente* hasta que recepción confirma el pago en *Admin → Ventas*.
 
-Migraciones en `supabase/migrations/` (0001–0007 ya aplicadas al proyecto; **0008, eliminar la cuenta, la aplica el desarrollador** antes de enviar las apps a revisión).
+Migraciones en `supabase/migrations/` (0001–0009, todas aplicadas al proyecto Marea).
 
 ## App de iOS y Android (Capacitor)
 

@@ -60,9 +60,11 @@ function termsText(r: Row): string {
   return capitalize([rateText(r), r.share !== null ? `le toca ${pct(r.share)}` : null].filter(Boolean).join(" · "));
 }
 
-/** Si el precio de hoy no es el de la semana: "Precio actual: $260". */
+/** Si el precio de hoy no es el de la semana: "Precio de esta semana · actual: $260" (o "sin definir"). */
 function currentRateNote(r: Row): string | null {
-  return hasRate(r.teacher) && r.rate !== r.teacher.rate ? `Precio actual: ${formatMoneyCents(r.teacher.rate!)}` : null;
+  const current = hasRate(r.teacher) ? (r.teacher.rate ?? 0) : null;
+  if (r.rate === null || (current !== null && r.rate === current) || (current === null && !(r.rate > 0))) return null;
+  return `Precio de esa semana; el actual: ${current === null ? "sin definir" : formatMoneyCents(current)}`;
 }
 
 function buildRows(db: DB, start: Date, end: Date, now: Date): Row[] {
@@ -95,7 +97,7 @@ function NoRate() {
     <div className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 pt-3 pb-1 text-sm text-amber-900 ring-1 ring-amber-200">
       <AlertTriangle size={16} className="mt-0.5 shrink-0" />
       <div className="min-w-0">
-        <p>Sin precio por alumno.</p>
+        <p>Sin precio por alumno para sus próximas clases.</p>
         <Link href="/admin/profesores" className={cn(textLinkClass, "font-medium underline underline-offset-2")}>
           Define su precio en Profesores
         </Link>
@@ -185,7 +187,9 @@ export default function TeacherPayoutsPage() {
         </div>
         {isCurrent && upcomingTotal > 0 && (
           <p className="mt-2 border-t border-line pt-2 text-center text-xs text-muted">
-            Faltan {upcomingTotal} {upcomingTotal === 1 ? "clase" : "clases"} por dar esta semana: se suman cuando empiezan.
+            {upcomingTotal === 1
+              ? "Falta 1 clase por dar esta semana: se suma cuando empieza."
+              : `Faltan ${upcomingTotal} clases por dar esta semana: se suman cuando empiezan.`}
           </p>
         )}
       </Card>
@@ -619,7 +623,9 @@ function TeacherDetailModal({
           )}
           {upcoming > 0 && (
             <p className="mt-2 text-xs text-muted">
-              Le {upcoming === 1 ? "falta 1 clase" : `faltan ${upcoming} clases`} por dar esta semana: se suman cuando empiezan.
+              {upcoming === 1
+                ? "Le falta 1 clase por dar esta semana: se suma cuando empieza."
+                : `Le faltan ${upcoming} clases por dar esta semana: se suman cuando empiezan.`}
             </p>
           )}
         </section>

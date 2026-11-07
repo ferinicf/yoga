@@ -37,13 +37,10 @@ Este es el resumen y la lista de pendientes. Los pasos a detalle están en tres 
 Marca cada punto. Ninguna tienda deja enviar sin las direcciones públicas, y los revisores prueban la cuenta
 de prueba y "Eliminar mi cuenta".
 
-- [ ] **Migraciones de la base de datos.** La `0006` (pagos a profesores) y la `0007` (ajustes de pagos) ya las
-  aplicó el desarrollador. La **`0008` (eliminar la cuenta)** la aplica **el desarrollador** antes de enviar:
-  sin ella, "Eliminar mi cuenta" falla y Apple rechaza la app (regla 5.1.1(v)) y la declaración de Google
-  ("los datos se pueden borrar") sería falsa. Pídele que te confirme que ya quedó.
-  - Cómo se aplica: Supabase → proyecto **Marea** → **SQL Editor** → pega
-    `supabase/migrations/0008_eliminar_cuenta.sql` completo → **Run**. Se puede correr más de una vez.
-  - Cómo se comprueba (sin iniciar sesión; la llave publicable está en `src/lib/supabase.ts`):
+- [x] **Migraciones de la base de datos.** Todas aplicadas en el proyecto **Marea** (7-nov-2026): `0006` y `0007`
+  (pagos a profesores y permisos por clase), `0008` (eliminar la cuenta) y `0009` (solo la administración vende
+  paquetes). Si algún día se recrea la base, se aplican en orden desde Supabase → **SQL Editor**.
+  - Cómo se comprueba que "Eliminar mi cuenta" está activa (sin iniciar sesión; la llave publicable está en `src/lib/supabase.ts`):
 
     ```bash
     curl -s -X POST https://xdojstptndarxjprxyna.supabase.co/rest/v1/rpc/delete_my_account \
@@ -88,7 +85,7 @@ de prueba y "Eliminar mi cuenta".
 3. **Conecta Codemagic** y crea la llave de Android (flujo `android-generar-llave`, **una sola vez**) →
    [codemagic.md](codemagic.md).
 4. **Crea la app en App Store Connect** → [app-store.md, paso 2](app-store.md#2-crear-la-app-en-app-store-connect).
-5. **Revisa la lista de pendientes** de arriba (páginas públicas, cuentas de prueba, migración 0008).
+5. **Revisa la lista de pendientes** de arriba (páginas públicas y cuentas de prueba).
 
 ### Cuando la cuenta de Google esté verificada
 

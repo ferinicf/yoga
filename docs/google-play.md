@@ -100,6 +100,7 @@ En **Panel → Configura tu app** aparece la lista de tareas. Antes de llenarlas
    | Información personal → **Número de teléfono** | Teléfono | Opcional | Funcionalidad de la app; Comunicaciones del desarrollador |
    | Información personal → **Otra información** | Cumpleaños | Opcional | Funcionalidad de la app; Comunicaciones del desarrollador |
    | Información financiera → **Historial de compras** | Paquetes, montos, forma y estado del pago | Obligatorio | Funcionalidad de la app; Estadísticas |
+   | Información financiera → **Otra información financiera** | Solo del personal: precio por alumno, lo ganado y los pagos que le hace el estudio | Obligatorio para el personal | Funcionalidad de la app |
    | Salud y actividad física → **Información de salud** | Solo si el estudio anota una lesión o condición que el alumno comparte | Opcional | Funcionalidad de la app |
    | Actividad en la app → **Otras acciones** | Reservaciones, cancelaciones, lista de espera y asistencias | Obligatorio | Funcionalidad de la app; Estadísticas |
 

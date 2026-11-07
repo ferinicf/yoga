@@ -65,8 +65,11 @@ variable llamada `CERTIFICATE_PRIVATE_KEY`.
 **¿Ya no tienes ese archivo?** Crea una llave nueva y Codemagic creará un certificado nuevo en tu cuenta de Apple
 la primera vez que compiles:
 
-- En una Mac (Terminal) o en Windows (PowerShell), escribe:
+- En una Mac (Terminal), escribe:
   `ssh-keygen -t rsa -b 2048 -m PEM -f ios_distribution_private_key -q -N ""`
+- En Windows abre **Símbolo del sistema** (cmd, no PowerShell) y escribe el mismo comando. Si prefieres
+  PowerShell, cambia el final por `-N '""'`:
+  `ssh-keygen -t rsa -b 2048 -m PEM -f ios_distribution_private_key -q -N '""'`
 - Se crea el archivo `ios_distribution_private_key` en la carpeta donde estás. Ábrelo con un editor de texto,
   copia todo y pégalo como valor de `CERTIFICATE_PRIVATE_KEY`. Guárdalo en tu gestor de contraseñas y bórralo de
   la computadora. **No** lo guardes dentro de la carpeta del proyecto.

@@ -144,6 +144,7 @@ esto (es lo mismo que dice el aviso de privacidad y lo que declaras en Google Pl
 | Información de contacto → **Número de teléfono** | Opcional | Funcionalidad de la app; Publicidad o marketing del desarrollador |
 | Salud y forma física → **Salud** | Solo si el estudio anota una lesión o condición que el alumno comparte | Funcionalidad de la app |
 | Compras → **Historial de compras** | Paquetes, montos, forma y estado del pago | Funcionalidad de la app; Analíticas |
+| Información financiera → **Otra información financiera** | Solo del personal: precio por alumno, lo ganado y los pagos que le hace el estudio | Funcionalidad de la app |
 | Identificadores → **ID de usuario** | Identificador de la cuenta | Funcionalidad de la app |
 | Otros datos → **Otros tipos de datos** | Reservaciones, asistencias, lugar en el salón y cumpleaños (opcional) | Funcionalidad de la app; Analíticas |
 

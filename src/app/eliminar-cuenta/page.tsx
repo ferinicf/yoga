@@ -86,8 +86,10 @@ export default function DeleteAccountPage() {
         <ul className={list}>
           <li>Se borra tu usuario de acceso: ya no podrás iniciar sesión y se cierran tus sesiones en todos tus dispositivos.</li>
           <li>
-            Tu nombre se queda en el historial de las clases que diste, de las ventas y de los pagos, porque el estudio lo
-            necesita para su contabilidad. Lo que el estudio te deba por clases ya dadas no se pierde.
+            Tu ficha de personal (nombre, correo y teléfono) se queda en el registro del estudio, ligada a las clases que
+            diste, las ventas y los pagos, porque el estudio la necesita para su contabilidad; ya no da acceso a la app. Si
+            quieres que también se borren tus datos de contacto, escríbenos. Lo que el estudio te deba por clases ya dadas no
+            se pierde.
           </li>
           <li>Si administras el estudio, tu correo sale de la lista de administradores.</li>
         </ul>

@@ -84,7 +84,8 @@ const FAQ: { q: string; a: ReactNode }[] = [
     q: "¿Cómo cambio mis datos?",
     a: (
       <>
-        En <strong className="font-medium">Perfil</strong> puedes cambiar tu nombre, correo, teléfono y cumpleaños.
+        En <strong className="font-medium">Perfil</strong> puedes cambiar tu nombre, teléfono y cumpleaños. Tu correo es el
+        de tu inicio de sesión: para cambiarlo, escríbenos.
       </>
     ),
   },

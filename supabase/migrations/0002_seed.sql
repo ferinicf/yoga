@@ -3,7 +3,7 @@
 
 insert into public.settings (id, studio_name, tagline, brand_color, address, phone, whatsapp, instagram,
   cancel_hours, booking_window_days, day_limit, week_limit, admin_emails)
-values (1, 'Marea', 'Respira, muévete, conecta.', '#5B7F6E', '', '', '', 'marea',
+values (1, 'Marea', 'Respira, muévete, conecta.', '#5B7F6E', '', '', '', '',
   8, 14, 2, null, array['desarrolladorfero@gmail.com', 'coronadofero@gmail.com']);
 
 insert into public.disciplines (id, name, description, color, duration_min, level) values

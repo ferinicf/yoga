@@ -129,7 +129,13 @@ function Plans() {
               <Card key={m.id} className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-medium">{m.planName}</p>
-                  {m.status === "active" ? <Badge tone="green">Activo</Badge> : <Badge tone="amber">Pago pendiente</Badge>}
+                  {m.status !== "active" ? (
+                    <Badge tone="amber">Pago pendiente</Badge>
+                  ) : m.credits !== null && creditsLeft(m) === 0 ? (
+                    <Badge>Agotado</Badge>
+                  ) : (
+                    <Badge tone="green">Activo</Badge>
+                  )}
                 </div>
                 <p className="mt-2 text-2xl font-semibold tabular-nums">
                   {m.credits === null ? "Ilimitado" : `${creditsLeft(m)} / ${m.credits}`}

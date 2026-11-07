@@ -13,7 +13,7 @@ import type {
 import { roomSpots } from "./utils";
 import { classEarnings, DEFAULT_TEACHER_SHARE, payWeek, totals } from "./payouts";
 
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
 /** PRNG determinista para que el demo sea estable. */
 function rng(seed: number) {
@@ -132,7 +132,10 @@ export function createSeed(now = new Date()): DB {
   templates.push(T("t_6_11", "d_ash", "u_t4", "r_main", 6, "11:00"));
   templates.push(T("t_0_10", "d_yin", "u_t3", "r_main", 0, "10:00"));
 
-  const sessions = generateSessionsForTemplates(templates, [], subDays(now, 21), addDays(now, 42));
+  // Historial: tres semanas de pago completas (lunes a domingo) antes de la actual, para que
+  // Pagos a profesores y Mis ganancias tengan semanas anteriores con datos.
+  const historyStart = subDays(payWeek(now).start, 21);
+  const sessions = generateSessionsForTemplates(templates, [], historyStart, addDays(now, 42));
 
   const plans: Plan[] = [
     { id: "p_trial", name: "Clase de prueba", description: "Tu primera clase para conocernos.", price: 150, credits: 1, validityDays: 7, disciplineIds: [], maxPerMember: 1, featured: false, active: true },
@@ -170,7 +173,10 @@ export function createSeed(now = new Date()): DB {
   // Membresías vigentes para todos menos los 3 últimos (uno con pago pendiente y dos sin paquete).
   students.slice(0, students.length - 3).forEach((u, i) => {
     const p = i === 3 ? plans.find((x) => x.id === "p_pre")! : i % 3 === 0 ? plans[5] : pick([plans[3], plans[4], plans[4], plans[2]]);
-    sell(u, p, subDays(now, 3 + Math.floor(rand() * 18)), pick(methods));
+    // Vigentes desde antes del historial para cubrir las semanas anteriores; si el paquete
+    // vence en estos días, el alumno ya lo renovó (así sigue con créditos en el demo).
+    const m = sell(u, p, subDays(historyStart, Math.floor(rand() * 4)), pick(methods));
+    if (new Date(m.expiresAt) < addDays(now, 5)) sell(u, p, new Date(m.expiresAt), pick(methods));
   });
   // Un pago pendiente en recepción.
   sell(students[students.length - 3], plans[2], subDays(now, 1), "efectivo", "pending");
@@ -183,7 +189,7 @@ export function createSeed(now = new Date()): DB {
     const start = new Date(s.startsAt);
     const past = start < now;
     const daysAhead = (start.getTime() - now.getTime()) / 864e5;
-    if (daysAhead > 6 || daysAhead < -10) continue;
+    if (daysAhead > 6 || start < historyStart) continue;
     const fill = past ? 0.45 + rand() * 0.5 : Math.max(0, 0.95 - daysAhead * 0.12 + (rand() - 0.5) * 0.3);
     const target = Math.min(s.capacity, Math.round(s.capacity * fill));
     const spots = [...spotsFor(s)].sort(() => rand() - 0.5);

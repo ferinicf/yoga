@@ -471,7 +471,9 @@ export function TeacherEarnings({ teacher }: { teacher: User }) {
 
         {isCurrent && upcoming > 0 && list.length > 0 && (
           <p className="mt-3 text-xs text-muted">
-            Te {upcoming === 1 ? "falta 1 clase" : `faltan ${upcoming} clases`} esta semana; se suman cuando empiecen.
+            {upcoming === 1
+              ? "Te falta 1 clase esta semana; se suma cuando empiece."
+              : `Te faltan ${upcoming} clases esta semana; se suman cuando empiecen.`}
           </p>
         )}
       </Card>
