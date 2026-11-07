@@ -10,6 +10,7 @@ import type { Session } from "@/lib/types";
 import { endTime, fmt, longDay, roomSpots, timeOf } from "@/lib/utils";
 import { AttendanceList, SpotPicker } from "@/components/domain";
 import { toast, toastDone } from "@/components/toast";
+import { confirmar } from "@/components/confirm-dialog";
 import { Avatar, Badge, Button, Card, Empty, Field, Input, Modal, Select, Textarea } from "@/components/ui";
 import { NumberInput } from "@/components/admin/number-input";
 
@@ -94,14 +95,21 @@ function AdminSession() {
           ) : (
             <Button
               variant="danger"
-              onClick={() => {
+              onClick={async () => {
                 const detail =
                   occ === 0
                     ? "No tiene reservaciones."
                     : occ === 1
                       ? "Se cancelará 1 reservación y se devolverá el crédito."
                       : `Se cancelarán ${occ} reservaciones y se devolverán los créditos.`;
-                if (!confirm(`¿Cancelar esta clase? ${detail}`)) return;
+                const ok = await confirmar({
+                  title: "¿Cancelar esta clase?",
+                  message: `${disc?.name ?? "Clase"} · ${longDay(session.startsAt)}, ${timeOf(session.startsAt)}. ${detail}`,
+                  confirmText: "Cancelar clase",
+                  cancelText: "No, mantenerla",
+                  destructive: true,
+                });
+                if (!ok) return;
                 toastDone(
                   cancelSession(session.id),
                   occ === 0

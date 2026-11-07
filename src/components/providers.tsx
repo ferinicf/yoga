@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 import { Toaster, toast } from "./toast";
+import { ConfirmHost } from "./confirm-dialog";
 
 /** Texto casi negro de la app (igual que --ink). */
 const INK_DARK = "#1f2421";
@@ -58,7 +59,7 @@ export function brandText(hex: string): string {
 
 /**
  * Arranque de la app:
- *  - modo demo: carga los datos guardados en el navegador;
+ *  - modo demo: carga los datos de ejemplo guardados en este dispositivo;
  *  - modo real: recupera la sesión de Supabase y descarga los datos visibles para el usuario.
  */
 export function Providers({ children }: { children: ReactNode }) {
@@ -121,6 +122,16 @@ export function Providers({ children }: { children: ReactNode }) {
     root.setProperty("--brand-text", brandText(brand));
   }, [brand]);
 
+  // Sin conexión al arrancar: se puede reintentar sin recargar (dentro de la app no hay botón de recarga).
+  const retry = async () => {
+    setError(null);
+    try {
+      await useStore.getState().refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   if (!hydrated) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
@@ -131,12 +142,17 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <>
       {error && (
-        <div className="bg-red-600 px-4 py-2 text-center text-sm text-white">
-          No pudimos conectar con el servidor ({error}). Revisa tu conexión y recarga la página.
+        <div role="alert" title={error} className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-red-600 px-4 pb-2 pt-safe-2 text-center text-sm text-white">
+          <span>No pudimos conectar con el servidor. Revisa tu conexión a internet.</span>
+          <button type="button" onClick={retry} className="min-h-10 rounded-lg px-2 font-semibold underline underline-offset-2">
+            Reintentar
+          </button>
         </div>
       )}
       {children}
       <Toaster />
+      {/* Confirmaciones en español (en la app, window.confirm sale con botones en inglés). */}
+      <ConfirmHost />
     </>
   );
 }

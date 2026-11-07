@@ -8,6 +8,7 @@ import { useDB, useStore } from "@/lib/store";
 import type { PaymentMethod, Sale } from "@/lib/types";
 import { capitalize, fmt, formatMoney, PAYMENT_LABEL } from "@/lib/utils";
 import { toastDone } from "@/components/toast";
+import { confirmar } from "@/components/confirm-dialog";
 import { Avatar, Badge, Button, Card, Empty, PageHeader, Segmented } from "@/components/ui";
 import { SellModal } from "@/components/admin/sell-modal";
 import { ConfirmSaleModal, saleMethodLabel } from "@/components/admin/confirm-sale-modal";
@@ -45,8 +46,15 @@ export default function SalesPage() {
     };
   }, [db, month, filter]);
 
-  const doRefund = (s: Sale) => {
-    if (!confirm(`¿Reembolsar ${formatMoney(s.total)} de "${s.concept}"? El paquete del alumno se cancela.`)) return;
+  const doRefund = async (s: Sale) => {
+    const who = db.users.find((u) => u.id === s.userId)?.name;
+    const ok = await confirmar({
+      title: `¿Reembolsar ${formatMoney(s.total)}?`,
+      message: `${s.concept}${who ? ` · ${who}` : ""}. La venta queda como reembolsada y el paquete del alumno se cancela.`,
+      confirmText: "Reembolsar",
+      destructive: true,
+    });
+    if (!ok) return;
     toastDone(refundSale(s.id), "Venta reembolsada y paquete cancelado.");
   };
 

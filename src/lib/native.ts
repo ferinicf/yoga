@@ -5,8 +5,10 @@
  *
  * Todo es seguro en la web: si la app corre en un navegador, cada función es un no-op (o usa el
  * equivalente web) y los plugins nativos ni siquiera se descargan (import dinámico).
+ * Nada de window.confirm/alert: en la app salen con botones en inglés; se usa confirmar()/avisar().
  */
 import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
+import { avisar, confirmar } from "@/components/confirm-dialog";
 
 /** Esquema de los enlaces profundos de la app: marea://ruta/interna?x=1 */
 export const DEEP_LINK_SCHEME = "marea";
@@ -43,11 +45,21 @@ export async function hapticSuccess(): Promise<void> {
 /** Minutos antes de la clase en que llega el recordatorio. */
 export const REMINDER_MINUTES = 60;
 
-const ASKED_KEY = "marea-recordatorios";
+/** Versiones anteriores guardaban aquí un "no" que bloqueaba el permiso para siempre: ya no se usa. */
+const LEGACY_ASKED_KEY = "marea-recordatorios";
+/** Última vez que se explicó cómo activar las notificaciones en Configuración (para no insistir). */
+const SETTINGS_TIP_KEY = "marea-recordatorios-aviso";
+const SETTINGS_TIP_EVERY_MS = 7 * 24 * 60 * 60_000;
+
+/** Se emite en `window` cuando se concede el permiso: <NativeBridge/> programa los recordatorios. */
+export const REMINDERS_ENABLED_EVENT = "marea:recordatorios-activados";
 
 export type ReminderResult =
   | { ok: true; at: Date }
-  | { ok: false; reason: "web" | "denied" | "declined" | "too-late" | "error" };
+  | { ok: false; reason: "web" | "denied" | "too-late" | "error" };
+
+/** Estado del permiso de notificaciones ("web" = no aplica, fuera de la app). */
+export type RemindersStatus = "web" | "granted" | "prompt" | "denied";
 
 export interface ClassReminder {
   /** Id estable de la reservación (o de la clase). Se usa también para cancelarlo. */
@@ -77,40 +89,136 @@ export function reminderId(id: string): number {
   return (h & 0x7fffffff) || 1;
 }
 
-function defaultExplain(): Promise<boolean> {
-  return Promise.resolve(
-    window.confirm(
-      "¿Te avisamos 1 hora antes de tus clases?\n\nMarea te mandará un recordatorio en este teléfono. Puedes desactivarlo cuando quieras en Ajustes.",
-    ),
-  );
+/**
+ * Aviso propio antes de la solicitud del sistema: explica para qué son los recordatorios. Tiene un
+ * solo botón ("Continuar") y, se cierre como se cierre, después SIEMPRE viene la solicitud del
+ * sistema, que es donde la persona dice sí o no (App Store 5.1.1: el aviso previo no lleva salida).
+ */
+function defaultExplain(): Promise<unknown> {
+  return avisar({
+    title: "Recordatorios de tus clases",
+    message:
+      "Te avisamos en este dispositivo 1 hora antes de cada clase que reserves, para que llegues con calma. " +
+      "Enseguida te preguntaremos si permites las notificaciones de Marea.",
+    confirmText: "Continuar",
+  });
+}
+
+/** Abre la página de Marea en la app Configuración (solo iOS tiene una dirección para eso). */
+function openAppSettings(): void {
+  // UIApplication.openSettingsURLString. Capacitor manda al sistema las direcciones que no son de la app.
+  window.location.href = "app-settings:";
 }
 
 /**
- * Pide permiso de notificaciones si hace falta. La primera vez explica para qué es antes de que
- * aparezca el aviso del sistema; si la persona dice que no, no volvemos a preguntar.
+ * Las notificaciones están bloqueadas: explica cómo activarlas. En iOS ofrece abrir Configuración;
+ * Android no tiene una dirección para abrir esa pantalla sin un plugin, así que se explica el camino.
  */
-async function ensureNotificationPermission(explain: () => Promise<boolean>): Promise<ReminderResult | null> {
+async function explainBlocked(): Promise<void> {
+  if (platform() === "ios") {
+    const go = await confirmar({
+      title: "Activa los recordatorios",
+      message:
+        "Las notificaciones de Marea están desactivadas. Para recibir un aviso 1 hora antes de tus clases, " +
+        "toca «Abrir Configuración», entra a Notificaciones y activa «Permitir notificaciones».",
+      confirmText: "Abrir Configuración",
+      cancelText: "Ahora no",
+    });
+    if (go) openAppSettings();
+    return;
+  }
+  await avisar({
+    title: "Activa los recordatorios",
+    message:
+      "Las notificaciones de Marea están desactivadas. Para recibir un aviso 1 hora antes de tus clases, " +
+      "abre la configuración de tu teléfono, entra a Aplicaciones › Marea › Notificaciones y actívalas.",
+  });
+}
+
+function settingsTipDue(): boolean {
+  const last = Number(localStorage.getItem(SETTINGS_TIP_KEY) ?? 0);
+  return !Number.isFinite(last) || Date.now() - last > SETTINGS_TIP_EVERY_MS;
+}
+
+function settingsTipShown(): void {
+  localStorage.setItem(SETTINGS_TIP_KEY, String(Date.now()));
+}
+
+/** Pausa antes de un aviso que sale solo (al reservar): primero se alcanza a leer "¡Reservación confirmada!". */
+const NOTICE_DELAY_MS = 1000;
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function remindersEnabled(): void {
+  window.dispatchEvent(new Event(REMINDERS_ENABLED_EVENT));
+}
+
+/**
+ * Pide permiso de notificaciones si hace falta. Antes de la solicitud del sistema se explica para
+ * qué es (y siempre se llega a la solicitud). Si ya se negó, de vez en cuando (al reservar) se
+ * explica cómo activarlas en Configuración; `insist` lo explica siempre (p. ej. desde Mi perfil).
+ */
+async function ensureNotificationPermission(
+  explain: () => Promise<unknown>,
+  insist = false,
+): Promise<ReminderResult | null> {
   const { LocalNotifications } = await import("@capacitor/local-notifications");
+  localStorage.removeItem(LEGACY_ASKED_KEY);
   let { display } = await LocalNotifications.checkPermissions();
   if (display === "granted") return null;
-  if (display === "denied") return { ok: false, reason: "denied" };
-  if (localStorage.getItem(ASKED_KEY) === "no") return { ok: false, reason: "declined" };
-  if (!(await explain())) {
-    localStorage.setItem(ASKED_KEY, "no");
-    return { ok: false, reason: "declined" };
+  if (display === "denied") {
+    if (insist || settingsTipDue()) {
+      settingsTipShown();
+      if (!insist) await wait(NOTICE_DELAY_MS);
+      await explainBlocked();
+    }
+    return { ok: false, reason: "denied" };
   }
-  localStorage.setItem(ASKED_KEY, "si");
+  if (!insist) await wait(NOTICE_DELAY_MS);
+  await explain();
   ({ display } = await LocalNotifications.requestPermissions());
-  return display === "granted" ? null : { ok: false, reason: "denied" };
+  if (display === "granted") {
+    remindersEnabled();
+    return null;
+  }
+  // Acaba de decir que no: el consejo de Configuración espera unos días.
+  settingsTipShown();
+  return { ok: false, reason: "denied" };
+}
+
+/** Estado del permiso de notificaciones de la app ("web" fuera de la app). No pregunta nada. */
+export async function remindersStatus(): Promise<RemindersStatus> {
+  if (!isNative()) return "web";
+  try {
+    const { LocalNotifications } = await import("@capacitor/local-notifications");
+    const { display } = await LocalNotifications.checkPermissions();
+    return display === "granted" ? "granted" : display === "denied" ? "denied" : "prompt";
+  } catch {
+    return "web";
+  }
+}
+
+/**
+ * Para un botón "Activar recordatorios" (p. ej. en Mi perfil): pide el permiso con el aviso previo
+ * o, si ya se negó, explica cómo activarlo en Configuración. Al concederse se programan solos.
+ */
+export async function enableReminders(): Promise<RemindersStatus> {
+  if (!isNative()) return "web";
+  try {
+    await ensureNotificationPermission(defaultExplain, true);
+  } catch {
+    // Sin plugin: se informa el estado que haya.
+  }
+  return remindersStatus();
 }
 
 /**
  * Programa (o reprograma) el recordatorio de una clase, 1 h antes de que empiece.
- * `explain` permite mostrar una explicación propia antes del permiso del sistema (por omisión, un confirm).
+ * `explain` permite mostrar una explicación propia antes del permiso del sistema (por omisión, el
+ * aviso "Recordatorios de tus clases"); su resultado no importa: después siempre se pide el permiso.
  */
 export async function scheduleClassReminder(
   reminder: ClassReminder,
-  opts: { explain?: () => Promise<boolean> } = {},
+  opts: { explain?: () => Promise<unknown> } = {},
 ): Promise<ReminderResult> {
   if (!isNative()) return { ok: false, reason: "web" };
   const n = toNotification(reminder);

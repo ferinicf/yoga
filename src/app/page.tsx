@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronRight, GraduationCap, ShieldCheck, User as UserIcon } from "lucide-react";
 import { useCurrentUser, useDB, useStore } from "@/lib/store";
@@ -10,6 +11,7 @@ import { Avatar, Button, Card, Field, Input, Segmented, phoneError, phoneInputPr
 import { toast } from "@/components/toast";
 import { emailLinkOrigin, forwardDone, takeForwardTarget } from "@/app/_lib/enlaces";
 import { takePendingDeepLink } from "@/lib/native";
+import { PRIVACY_PATH, SUPPORT_PATH } from "@/lib/legal";
 
 const HOME: Record<Role, string> = { admin: "/admin", teacher: "/profesor", student: "/alumno" };
 
@@ -46,6 +48,14 @@ export default function LoginPage() {
           <p className="mt-1 text-muted">{db.settings.tagline}</p>
         </div>
         {mode === "live" ? <LiveLogin /> : <DemoLogin />}
+        <nav aria-label="Información" className="mt-4 flex justify-center gap-x-3 text-xs text-muted">
+          <Link href={PRIVACY_PATH} className={`${textLinkClass} px-1 underline-offset-2 hover:underline`}>
+            Aviso de privacidad
+          </Link>
+          <Link href={SUPPORT_PATH} className={`${textLinkClass} px-1 underline-offset-2 hover:underline`}>
+            Ayuda
+          </Link>
+        </nav>
       </div>
     </div>
   );
@@ -171,7 +181,15 @@ function LiveLogin() {
                 <button type="button" className={`${textLinkClass} px-2 text-muted underline`} onClick={() => setTab("in")}>
                   Volver
                 </button>
-              ) : null}
+              ) : (
+                <p className="text-muted">
+                  Al crear tu cuenta aceptas el{" "}
+                  <Link href={PRIVACY_PATH} className={`${textLinkClass} font-medium text-brand-text underline`}>
+                    aviso de privacidad
+                  </Link>
+                  .
+                </p>
+              )}
             </div>
           </>
         )}
@@ -208,7 +226,7 @@ function DemoLogin() {
     <>
       <Card className="p-5">
         <p className="mb-1 text-sm font-medium">Modo demo</p>
-        <p className="mb-4 text-sm text-muted">Datos de ejemplo guardados solo en este navegador. Elige un perfil para entrar.</p>
+        <p className="mb-4 text-sm text-muted">Datos de ejemplo guardados solo en este dispositivo. Elige un perfil para entrar.</p>
         <div className="mb-4 flex justify-center">
           <Segmented
             value={role}

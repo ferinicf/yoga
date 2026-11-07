@@ -6,6 +6,7 @@ import { useDB, useStore } from "@/lib/store";
 import type { Discipline, Room } from "@/lib/types";
 import { cn, roomSpots, spotLabel, uid } from "@/lib/utils";
 import { toast, toastResult, toastDone } from "@/components/toast";
+import { confirmar } from "@/components/confirm-dialog";
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Textarea, Toggle } from "@/components/ui";
 import { NumberInput } from "@/components/admin/number-input";
 
@@ -208,7 +209,13 @@ function RoomModal({ room, onClose }: { room?: Room; onClose: () => void }) {
               className="text-red-600"
               aria-label="Eliminar salón"
               onClick={async () => {
-                if (!confirm(`¿Eliminar ${room.name}?`)) return;
+                const ok = await confirmar({
+                  title: `¿Eliminar ${room.name}?`,
+                  message: "El salón se borra y ya no podrás programar clases en él. Si tiene clases recurrentes activas, muévelas antes a otro salón.",
+                  confirmText: "Eliminar salón",
+                  destructive: true,
+                });
+                if (!ok) return;
                 const res = await toastResult(del(room.id));
                 if (res.ok) onClose();
               }}

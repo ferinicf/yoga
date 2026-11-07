@@ -10,6 +10,7 @@ import type { ClassTemplate } from "@/lib/types";
 import { capitalize, cn, fmt, timeOf, WEEKDAYS, WEEKDAYS_SHORT, weekDays } from "@/lib/utils";
 import { SessionCard } from "@/components/domain";
 import { toastDone } from "@/components/toast";
+import { confirmar } from "@/components/confirm-dialog";
 import { Badge, Button, Card, Empty, PageHeader, Segmented } from "@/components/ui";
 import { ClassFormModal } from "@/components/admin/class-form";
 
@@ -195,9 +196,15 @@ export default function CalendarPage() {
                         <button
                           className="flex h-11 w-11 items-center justify-center rounded-xl hover:bg-black/5"
                           aria-label={t.active ? "Desactivar" : "Activar"}
-                          onClick={() => {
+                          onClick={async () => {
                             if (t.active) {
-                              if (!confirm("¿Desactivar esta clase recurrente? Se quitan las clases futuras sin reservaciones.")) return;
+                              const ok = await confirmar({
+                                title: "¿Desactivar esta clase recurrente?",
+                                message: `${disc?.name ?? "Clase"} · ${WEEKDAYS[wd]} ${t.startTime}. Se quitan las clases futuras que no tengan reservaciones; las que ya tienen reservaciones se mantienen. Puedes volver a activarla cuando quieras.`,
+                                confirmText: "Desactivar",
+                                destructive: true,
+                              });
+                              if (!ok) return;
                               toastDone(deleteTemplate(t.id), "Clase recurrente desactivada.");
                             } else {
                               toastDone(upsertTemplate({ ...t, active: true }), "Clase recurrente activada.");

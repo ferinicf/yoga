@@ -9,6 +9,7 @@ import { DEFAULT_TEACHER_SHARE } from "@/lib/payouts";
 import { formatMoneyCents } from "@/lib/utils";
 import { brandInk, brandText, contrastRatio } from "@/components/providers";
 import { toast, toastDone } from "@/components/toast";
+import { confirmar } from "@/components/confirm-dialog";
 import { Button, Card, Field, Input, PageHeader, Toggle } from "@/components/ui";
 import { NumberInput } from "@/components/admin/number-input";
 
@@ -244,13 +245,19 @@ export default function SettingsPage() {
         <Card className="p-5 lg:col-span-2">
           <h2 className="text-lg font-semibold">Datos de demostración</h2>
           <p className="mt-1 text-sm text-muted">
-            Todo se guarda solo en este navegador. Restablecer borra tus cambios y vuelve a cargar alumnos, clases y ventas de ejemplo.
+            Todo se guarda solo en este dispositivo. Restablecer borra tus cambios y vuelve a cargar alumnos, clases y ventas de ejemplo.
           </p>
           <Button
             variant="outline"
             className="mt-4 text-red-600"
             onClick={async () => {
-              if (!confirm("¿Restablecer todos los datos de demostración? Se perderán tus cambios.")) return;
+              const ok = await confirmar({
+                title: "¿Restablecer los datos de demostración?",
+                message: "Se pierden todos tus cambios y vuelven a cargarse los alumnos, clases y ventas de ejemplo.",
+                confirmText: "Restablecer",
+                destructive: true,
+              });
+              if (!ok) return;
               await resetDemo();
               setS(useStore.getState().db.settings);
               toast("Datos de demostración restablecidos.");

@@ -11,6 +11,7 @@ import {
   isNative,
   onDeepLink,
   reachedPath,
+  REMINDERS_ENABLED_EVENT,
   setPendingDeepLink,
   syncClassReminders,
   takePendingDeepLink,
@@ -53,7 +54,8 @@ function closeTopOverlay(): boolean {
  *  - botón "atrás" de Android: cierra la ventana abierta, regresa en el historial o sale;
  *  - enlaces marea://… y toques en notificaciones → rutas internas;
  *  - recordatorios al día con las reservaciones (también si el estudio cancela o mueve una clase,
- *    o si pasas de la lista de espera a la clase); al cerrar sesión se borran;
+ *    o si pasas de la lista de espera a la clase, o si activas las notificaciones en Configuración y
+ *    vuelves a la app); al cerrar sesión se borran;
  *  - al volver a la app recarga los datos.
  */
 export function NativeBridge() {
@@ -102,13 +104,27 @@ export function NativeBridge() {
       sessionStorage.setItem(LAUNCH_KEY, JSON.stringify([...handledLinks(), url].slice(-20)));
       const path = deepLinkToPath(url);
       if (!path) return;
-      // Si venimos del navegador (p. ej. el pago), lo cerramos.
+      // Si venimos del navegador del sistema abierto desde la app (p. ej. el pago), lo cerramos.
       closeExternal();
       // Pendiente hasta llegar: si la pantalla de inicio está por mandar al inicio del rol, va aquí.
       setPendingDeepLink(path);
       router.push(path);
     };
     const stopLinks = onDeepLink(openLink);
+
+    // Recordatorios = clases reservadas que aún no empiezan. Se revisa (con una pausa, para juntar
+    // cambios seguidos) cada vez que cambian los datos; solo con sesión y si ya hay permiso.
+    let syncTimer: ReturnType<typeof setTimeout> | undefined;
+    const scheduleSync = () => {
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        const st = useStore.getState();
+        if (st.hydrated && st.currentUserId) syncClassReminders(upcomingReminders(st.db, st.currentUserId));
+      }, 1500);
+    };
+    scheduleSync();
+    // Se acaba de conceder el permiso (al reservar o desde un botón "Activar recordatorios").
+    window.addEventListener(REMINDERS_ENABLED_EVENT, scheduleSync);
 
     (async () => {
       const [{ App }, { StatusBar, Style }, { LocalNotifications }] = await Promise.all([
@@ -144,26 +160,17 @@ export function NativeBridge() {
         }),
       );
 
-      // Al volver a la app, datos al día (en la web lo hace el evento "focus").
+      // Al volver a la app, datos al día (en la web lo hace el evento "focus"). También se revisan los
+      // recordatorios: quizá se activaron las notificaciones en Configuración.
       keep(
         await App.addListener("appStateChange", ({ isActive }) => {
+          if (!isActive) return;
           const st = useStore.getState();
-          if (isActive && st.hydrated && st.mode === "live") st.refresh().catch(() => {});
+          if (st.hydrated && st.mode === "live") st.refresh().catch(() => {});
+          scheduleSync();
         }),
       );
     })().catch(() => {});
-
-    // Recordatorios = clases reservadas que aún no empiezan. Se revisa (con una pausa, para juntar
-    // cambios seguidos) cada vez que cambian los datos; solo con sesión y si ya hay permiso.
-    let syncTimer: ReturnType<typeof setTimeout> | undefined;
-    const scheduleSync = () => {
-      clearTimeout(syncTimer);
-      syncTimer = setTimeout(() => {
-        const st = useStore.getState();
-        if (st.hydrated && st.currentUserId) syncClassReminders(upcomingReminders(st.db, st.currentUserId));
-      }, 1500);
-    };
-    scheduleSync();
 
     const unsub = useStore.subscribe((s, prev) => {
       // Al cerrar sesión (o cambiar de modo) se borran los recordatorios de este teléfono.
@@ -179,6 +186,7 @@ export function NativeBridge() {
     return () => {
       stopped = true;
       clearTimeout(syncTimer);
+      window.removeEventListener(REMINDERS_ENABLED_EVENT, scheduleSync);
       stopLinks();
       unsub();
       handles.forEach((h) => h.remove());

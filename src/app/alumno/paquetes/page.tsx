@@ -37,8 +37,11 @@ function Plans() {
   const [applied, setApplied] = useState<string>();
   const [method, setMethod] = useState<"online" | "studio">("online");
   const [busy, setBusy] = useState(false);
-  // En modo real aún no hay pasarela de pago: las compras se pagan en recepción.
-  const onlineAvailable = useStore((s) => s.mode) === "demo";
+  const isDemo = useStore((s) => s.mode) === "demo";
+  // Pago en línea: solo la simulación del demo en la web. En modo real aún no hay pasarela, y en la
+  // app de las tiendas no se muestra un cobro que la versión real no tiene (App Store 2.1): las
+  // compras se apartan y se pagan en recepción.
+  const onlineAvailable = isDemo && !isNative();
   const payMethod = onlineAvailable ? method : "studio";
 
   const mems = currentMemberships(db, user.id);
@@ -47,7 +50,8 @@ function Plans() {
     ids.length === 0 ? "Todas las clases" : ids.map((id) => db.disciplines.find((d) => d.id === id)?.name).join(", ");
 
   const [liveQuote, setLiveQuote] = useState<{ discount: number; error?: string }>({ discount: 0 });
-  const c = !plan ? { discount: 0 } : onlineAvailable ? couponDiscount(db, applied, plan.price) : liveQuote;
+  // Cupones: en el demo se calculan con los datos locales; en modo real los cotiza el servidor.
+  const c = !plan ? { discount: 0 } : isDemo ? couponDiscount(db, applied, plan.price) : liveQuote;
   /** Cupón escrito que todavía no se aplica (el total aún no lo refleja). */
   const typed = coupon.trim() || undefined;
   const unapplied = typed !== applied;
@@ -57,7 +61,7 @@ function Plans() {
       setLiveQuote({ discount: 0 });
       return { discount: 0 };
     }
-    if (onlineAvailable) return couponDiscount(db, typed, plan.price);
+    if (isDemo) return couponDiscount(db, typed, plan.price);
     const q = await quoteCoupon(typed, plan.price);
     setLiveQuote(q);
     return q;
@@ -245,10 +249,9 @@ function Plans() {
                 <Store size={20} className="mt-0.5 shrink-0" />
                 <span>
                   <span className="block text-sm font-medium">Pago en recepción</span>
+                  {/* Instrucciones concretas, sin anunciar funciones futuras (App Store 2.1). */}
                   <span className="block text-xs text-muted">
-                    Tu paquete queda apartado y se activa cuando el estudio confirme tu pago.
-                    {/* En la app de las tiendas no se anuncian funciones futuras (App Store 2.1). */}
-                    {!isNative() && " El pago en línea llegará pronto."}
+                    Tu paquete queda apartado. Paga en recepción para activarlo.
                   </span>
                 </span>
               </div>
