@@ -165,9 +165,9 @@ workflows:
         BUNDLE_ID: mx.marea.app
         XCODE_PROJECT: ios/App/App.xcodeproj # Capacitor 8 con Swift Package Manager: no hay .xcworkspace
         XCODE_SCHEME: App
-        # Opcional: Apple ID numérico de la app (App Store Connect → Marea → Información de la app).
-        # Vacío = el flujo lo busca solo con el Bundle ID.
-        APP_STORE_APPLE_ID: ""
+        # Opcional: Apple ID numérico de la app (App Store Connect → Marea → Información de la app), p. ej.
+        #   APP_STORE_APPLE_ID: "6800000000"
+        # Si no está, el flujo lo busca solo con el Bundle ID. (Codemagic no acepta variables vacías.)
       node: 22
       xcode: latest # Apple exige Xcode 26 o más reciente para subir apps (desde el 28 de abril de 2026)
     scripts:
