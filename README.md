@@ -27,7 +27,24 @@ La app está conectada al proyecto Supabase **Marea** (organización "yoga y pil
 - **Seguridad:** las reglas (créditos, límites, cancelaciones, lista de espera, pagos) se aplican en funciones de la base; las políticas RLS impiden que un alumno vea datos de otros o se dé créditos.
 - **Pagos:** todavía no hay pasarela; lo que compra un alumno queda *pendiente* hasta que recepción confirma el pago en *Admin → Ventas*.
 
-Migraciones en `supabase/migrations/` (ya aplicadas al proyecto).
+Migraciones en `supabase/migrations/` (0001–0005 ya aplicadas al proyecto; **0007, eliminar cuenta, falta aplicarla** antes de publicar las apps).
+
+## App de iOS y Android (Capacitor)
+
+La interfaz va **empaquetada** dentro de la app (export estático de Next en `out/`, sin `server.url`):
+
+```bash
+npm run build:app     # export estático → out/ (la web en Vercel sigue usando `npm run build`)
+npm run cap:sync      # build:app + copia a ios/ y android/
+npm run cap:ios       # … y abre Xcode (en la Mac)
+npm run cap:android   # … y abre Android Studio
+npm run typecheck     # genera los tipos de rutas y corre tsc
+```
+
+Funciones nativas en `src/lib/native.ts` y `src/components/native-bridge.tsx` (enlaces `marea://`, recordatorios
+1 h antes de cada clase reservada, vibración, botón atrás de Android, pantalla de inicio). Guías para publicar:
+[`docs/publicar-app.md`](docs/publicar-app.md), [`docs/app-store.md`](docs/app-store.md) y
+[`docs/google-play.md`](docs/google-play.md).
 
 ## Modo demo
 

@@ -20,7 +20,9 @@ export interface NavItem {
 const ROLE_LABEL: Record<Role, string> = { admin: "Administración", teacher: "Profesor", student: "Alumno" };
 
 function isActive(pathname: string, href: string, root: string) {
-  return href === root ? pathname === root : pathname.startsWith(href);
+  // En la app de iOS/Android (export con trailingSlash) la ruta llega como "/admin/": se compara sin la "/" final.
+  const p = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return href === root ? p === root : p === href || p.startsWith(`${href}/`);
 }
 
 /**

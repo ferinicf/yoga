@@ -1,0 +1,138 @@
+# Compilaciones de la app Marea en Codemagic (no hace falta Mac).
+# Guía paso a paso: docs/codemagic.md
+#
+# Flujos (todos se lanzan a mano desde codemagic.io → Start new build):
+#   1. android-generar-llave  → SOLO UNA VEZ: crea la llave de subida de Google Play.
+#   2. ios-testflight         → compila la app de iPhone/iPad y la sube a TestFlight.
+#   3. android-play           → compila el paquete .aab firmado para Google Play.
+#
+# Secretos: NUNCA en este archivo ni en el chat. Viven en Codemagic:
+#   - Integración de App Store Connect (la misma de tu cuenta de Apple; en Bacco se llama "Bacco-AppStoreConnect").
+#   - Grupo de variables "marea" con CERTIFICATE_PRIVATE_KEY (llave del certificado de distribución de Apple).
+#   - Llave de Android "marea_upload" en Team settings → Code signing identities → Android keystores.
+
+workflows:
+  # ---------------------------------------------------------------- iOS
+  ios-testflight:
+    name: Marea - iPhone/iPad (TestFlight)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      # Nombre EXACTO de tu integración de App Store Connect en Codemagic (es de la cuenta de Apple, sirve para todas tus apps).
+      app_store_connect: Bacco-AppStoreConnect
+    environment:
+      groups:
+        - marea # CERTIFICATE_PRIVATE_KEY
+      vars:
+        BUNDLE_ID: mx.marea.app
+        XCODE_PROJECT: ios/App/App.xcodeproj
+        XCODE_SCHEME: App
+        # Apple ID numérico de la app en App Store Connect (App Store Connect → Marea → Información de la app).
+        # Déjalo vacío hasta crear la app; después ponlo aquí para numerar las compilaciones solas.
+        APP_STORE_APPLE_ID: ""
+      node: 22
+      xcode: latest
+    triggering:
+      events: [] # solo a mano
+    scripts:
+      - name: Instalar dependencias
+        script: npm ci
+      - name: Exportar la interfaz (Next.js estático → out/)
+        script: npm run build:app
+      - name: Copiar la interfaz al proyecto de iOS
+        script: npx cap sync ios
+      - name: Registrar el Bundle ID (si aún no existe)
+        script: |
+          app-store-connect bundle-ids create "$BUNDLE_ID" --name "Marea" --platform IOS \
+            || echo "El Bundle ID $BUNDLE_ID ya existe; seguimos."
+      - name: Firma automática (certificado y perfil desde App Store Connect)
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --certificate-key=@env:CERTIFICATE_PRIVATE_KEY \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: Número de compilación (+1 sobre el último de TestFlight)
+        script: |
+          cd ios/App
+          if [ -n "$APP_STORE_APPLE_ID" ]; then
+            LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" || echo 0)
+          else
+            LATEST=$BUILD_NUMBER
+          fi
+          agvtool new-version -all $(($LATEST + 1))
+      - name: Compilar el .ipa
+        script: xcode-project build-ipa --project "$XCODE_PROJECT" --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        # Queda en TestFlight para probadores internos. Enviar a revisión de Apple es un clic tuyo en App Store Connect.
+        submit_to_testflight: false
+
+  # ---------------------------------------------------------------- Android
+  android-play:
+    name: Marea - Android (Google Play)
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      android_signing:
+        - marea_upload # llave de subida (ver android-generar-llave)
+      node: 22
+      java: 21
+    triggering:
+      events: []
+    scripts:
+      - name: Instalar dependencias
+        script: npm ci
+      - name: Exportar la interfaz (Next.js estático → out/)
+        script: npm run build:app
+      - name: Copiar la interfaz al proyecto de Android
+        script: npx cap sync android
+      - name: Compilar el .aab firmado
+        script: |
+          cd android
+          chmod +x gradlew
+          # versionCode siempre creciente (Google Play rechaza números repetidos).
+          ./gradlew bundleRelease -PmareaVersionCode=$((BUILD_NUMBER + 100))
+    artifacts:
+      - android/app/build/outputs/bundle/release/*.aab
+
+  # Úsalo UNA sola vez. Crea la llave de subida de Google Play dentro de Codemagic.
+  # La llave y su contraseña aparecen como "Artifacts" de esa compilación (privados de tu cuenta de Codemagic).
+  android-generar-llave:
+    name: Marea - Android (generar llave, una sola vez)
+    max_build_duration: 10
+    instance_type: linux_x2
+    environment:
+      java: 21
+    triggering:
+      events: []
+    scripts:
+      - name: Generar llave de subida
+        script: |
+          mkdir -p llave
+          PASS=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)
+          keytool -genkeypair -v \
+            -keystore llave/marea-upload.jks -storetype JKS \
+            -alias marea_upload -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$PASS" -keypass "$PASS" \
+            -dname "CN=Marea, O=Marea, L=Mexico, C=MX" > /dev/null 2>&1
+          {
+            echo "Llave de subida de Google Play para Marea"
+            echo "Archivo: marea-upload.jks"
+            echo "Alias (key alias): marea_upload"
+            echo "Contraseña del almacén (keystore password): $PASS"
+            echo "Contraseña de la llave (key password): $PASS"
+            echo ""
+            echo "Súbela en Codemagic: Team settings → Code signing identities → Android keystores → Add keystore"
+            echo "con el nombre de referencia: marea_upload. Guarda una copia en un lugar seguro."
+          } > llave/LEEME-llave.txt
+          echo "Llave creada. Descárgala desde Artifacts."
+    artifacts:
+      - llave/marea-upload.jks
+      - llave/LEEME-llave.txt

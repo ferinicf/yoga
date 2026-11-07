@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 
+// Se genera una sola vez al compilar; `output: "export"` (app de iOS/Android) lo exige explícito.
+export const dynamic = "force-static";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Marea",

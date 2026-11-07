@@ -120,7 +120,7 @@ export default function AdminDashboard() {
           ) : (
             <div className="space-y-2">
               {stats.today.map((s) => (
-                <Link key={s.id} href={`/admin/clase/${s.id}`} className="block rounded-2xl transition hover:shadow-sm">
+                <Link key={s.id} href={`/admin/clase?id=${encodeURIComponent(s.id)}`} className="block rounded-2xl transition hover:shadow-sm">
                   <SessionCard session={s} />
                 </Link>
               ))}
@@ -222,7 +222,7 @@ export default function AdminDashboard() {
                   const u = db.users.find((x) => x.id === m.userId);
                   return (
                     <li key={m.id}>
-                      <Link href={`/admin/alumnos/${m.userId}`} className="flex items-center gap-3 py-3">
+                      <Link href={`/admin/alumnos/ficha?id=${encodeURIComponent(m.userId)}`} className="flex items-center gap-3 py-3">
                         {u && <Avatar name={u.name} color={u.color} size={32} />}
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{u?.name}</p>

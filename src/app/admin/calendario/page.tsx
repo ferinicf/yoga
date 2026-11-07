@@ -111,7 +111,7 @@ export default function CalendarPage() {
             ) : (
               <div className="space-y-2">
                 {sessionsOn(db, day, true).map((s) => (
-                  <Link key={s.id} href={`/admin/clase/${s.id}`} className="block rounded-2xl transition hover:shadow-sm">
+                  <Link key={s.id} href={`/admin/clase?id=${encodeURIComponent(s.id)}`} className="block rounded-2xl transition hover:shadow-sm">
                     <SessionCard session={s} />
                   </Link>
                 ))}
@@ -139,7 +139,7 @@ export default function CalendarPage() {
                       return (
                         <Link
                           key={s.id}
-                          href={`/admin/clase/${s.id}`}
+                          href={`/admin/clase?id=${encodeURIComponent(s.id)}`}
                           className={cn(
                             "block rounded-xl border-l-4 bg-surface p-2 text-xs shadow-sm ring-1 ring-line transition hover:ring-stone-300",
                             cancelled && "opacity-50 line-through",

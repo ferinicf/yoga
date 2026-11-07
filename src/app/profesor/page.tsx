@@ -35,7 +35,7 @@ export default function TeacherHome() {
       />
 
       {next && (
-        <Link href={`/profesor/clase/${next.id}`} className="block rounded-2xl">
+        <Link href={`/profesor/clase?id=${encodeURIComponent(next.id)}`} className="block rounded-2xl">
           <Card className="flex items-center gap-4 border-brand bg-brand-soft p-5">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium uppercase tracking-wide text-brand-strong">
@@ -71,7 +71,7 @@ export default function TeacherHome() {
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {list.map((s) => (
               // block + min-w-0: el enlace es el elemento del grid y no debe estirarse más que la pantalla.
-              <Link key={s.id} href={`/profesor/clase/${s.id}`} className="block min-w-0 rounded-2xl">
+              <Link key={s.id} href={`/profesor/clase?id=${encodeURIComponent(s.id)}`} className="block min-w-0 rounded-2xl">
                 <SessionCard session={s} right={<ChevronRight className="text-muted" />} />
               </Link>
             ))}

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { NativeBridge } from "@/components/native-bridge";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es-MX"className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
       <body className="min-h-dvh">
+        <NativeBridge />
         <Providers>{children}</Providers>
       </body>
     </html>

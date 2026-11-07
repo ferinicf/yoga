@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useSettings } from "@/lib/store";
 import { Button, Card, Field, Input, textLinkClass } from "@/components/ui";
 import { toast } from "@/components/toast";
+import { emailLinkOrigin } from "@/app/_lib/enlaces";
 
 /** checking: revisando el enlace · ready: hay sesión de recuperación · missing: se abrió sin enlace · expired: el enlace ya no sirve. */
 type LinkState = "checking" | "ready" | "missing" | "expired";
@@ -58,7 +59,7 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     const mail = email.trim().toLowerCase();
     setBusy(true);
-    const { error } = await supabase().auth.resetPasswordForEmail(mail, { redirectTo: `${window.location.origin}/restablecer` });
+    const { error } = await supabase().auth.resetPasswordForEmail(mail, { redirectTo: `${emailLinkOrigin()}/restablecer` });
     setBusy(false);
     if (error) return toast(authError(error.message), false);
     setSent(`Si existe una cuenta con ${mail}, te llegará un correo con un enlace nuevo. Ábrelo en este mismo dispositivo.`);

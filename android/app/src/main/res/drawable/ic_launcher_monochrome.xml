@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Capa monocromática del ícono adaptable (íconos temáticos de Android 13+). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <group android:translateY="-10">
+        <path
+            android:pathData="M312,590 V360 L512,545 L712,360 V590"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="80"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M292,690 q55,-34 110,0 t110,0 t110,0 t110,0"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="40"
+            android:strokeLineCap="round" />
+    </group>
+</vector>

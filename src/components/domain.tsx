@@ -22,6 +22,8 @@ import {
 } from "@/lib/rules";
 import type { Reservation, Session, User } from "@/lib/types";
 import { cn, endTime, fmt, isSameDay, longDay, roomSpots, spotLabel, timeOf } from "@/lib/utils";
+import { cancelClassReminder, hapticSuccess, scheduleClassReminder } from "@/lib/native";
+import { classReminder } from "@/lib/reminders";
 import { toast, toastResult } from "./toast";
 import { Avatar, Badge, Button, Field, Input, Modal, Occupancy } from "./ui";
 
@@ -260,8 +262,12 @@ export function BookingSheet({
     setBusy(true);
     const r = await toastResult(book(session.id, user.id, { spot: pickedSpot }));
     setBusy(false);
-    if (r.ok) close();
-    else setSpot(undefined);
+    if (!r.ok) return setSpot(undefined);
+    close();
+    // App nativa: vibración de "listo" y recordatorio 1 h antes (no si quedó en lista de espera).
+    hapticSuccess();
+    const fresh = useStore.getState().db;
+    if (userReservation(fresh, session.id, user.id)?.status === "booked") scheduleClassReminder(classReminder(fresh, session));
   };
   const doGuest = async () => {
     if (!guest.trim()) return toast("Escribe el nombre de tu invitado/a.", false);
@@ -269,6 +275,7 @@ export function BookingSheet({
     const r = await toastResult(book(session.id, user.id, { guestName: guest.trim(), spot: pickedSpot }));
     setBusy(false);
     if (r.ok) {
+      hapticSuccess();
       // Regresa a la hoja de la clase: puede que también quieras reservar tu lugar.
       setGuestMode(false);
       setGuest("");
@@ -280,7 +287,10 @@ export function BookingSheet({
     const out = await toastResult(cancel(r.id));
     setBusy(false);
     setConfirmId(null);
-    if (out.ok && r.id === res?.id) close();
+    if (out.ok && r.id === res?.id) {
+      close();
+      cancelClassReminder(session.id);
+    }
   };
   /** Dentro de la ventana de cancelación tardía se confirma antes; los invitados, siempre. */
   const askCancel = (r: Reservation) => {

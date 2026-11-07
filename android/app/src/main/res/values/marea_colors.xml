@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colores de Marea (iguales a --bg y --brand de la web). -->
+    <color name="marea_fondo">#F7F5F1</color>
+    <color name="marea_marca">#5B7F6E</color>
+</resources>
