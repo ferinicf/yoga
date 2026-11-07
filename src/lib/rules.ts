@@ -142,20 +142,36 @@ export type BookCheck =
     };
 
 /**
+ * ¿Esta persona es "personal" de esta clase? El admin en todas; un profesor solo en las suyas.
+ * Solo el personal de la clase puede inscribir o quitar a otros, decidir el reembolso, hacer
+ * check-in y pasar lista. Igual que book_session, cancel_reservation, set_attendance y
+ * check_in_by_code en la base (supabase/migrations/0007_pagos_ajustes.sql).
+ */
+export function isClassStaff(
+  user: Pick<User, "id" | "role" | "active"> | null | undefined,
+  session: Pick<Session, "teacherId">,
+): boolean {
+  if (!user || !user.active) return false;
+  return user.role === "admin" || (user.role === "teacher" && session.teacherId === user.id);
+}
+
+/**
  * Valida una reservación. Debe coincidir con `book_session` en la base (modo real).
  *  - guest / guestName: reservación para un invitado (guestName undefined = solo consultar).
- *  - staff: el personal reserva por un alumno (sin límites; mensajes en tercera persona).
+ *  - staff: el personal de la clase reserva (sin hora límite ni límites por día/semana).
+ *  - other: reserva por otra persona (mensajes en tercera persona). Por omisión = staff.
  */
 export function checkBooking(
   db: DB,
   user: User,
   session: Session,
-  opts: { guest?: boolean; guestName?: string; now?: Date; staff?: boolean } = {},
+  opts: { guest?: boolean; guestName?: string; now?: Date; staff?: boolean; other?: boolean } = {},
 ): BookCheck {
   const now = opts.now ?? new Date();
   const start = new Date(session.startsAt);
   const s = db.settings;
   const guest = !!opts.guest || opts.guestName !== undefined;
+  const third = opts.other ?? !!opts.staff;
 
   if (session.status === "cancelled") return { ok: false, reason: "Esta clase fue cancelada." };
   if (!opts.staff && start <= now) return { ok: false, reason: "La clase ya comenzó." };
@@ -187,7 +203,7 @@ export function checkBooking(
     if (userReservation(db, session.id, user.id))
       return {
         ok: false,
-        reason: opts.staff ? `${user.name} ya tiene lugar en esta clase.` : "Ya tienes un lugar en esta clase.",
+        reason: third ? `${user.name} ya tiene lugar en esta clase.` : "Ya tienes un lugar en esta clase.",
       };
     if (!opts.staff) {
       if (s.dayLimit !== null) {
@@ -227,11 +243,11 @@ export function checkBooking(
       return {
         ok: false,
         pending: true,
-        reason: opts.staff
+        reason: third
           ? `${user.name} no tiene créditos activos: su ${pending.planName} está pendiente de pago.`
           : `Tu ${pending.planName} está pendiente de pago en recepción. Podrás reservar en cuanto el estudio confirme tu pago.`,
       };
-    return opts.staff
+    return third
       ? { ok: false, reason: `${user.name} no tiene créditos vigentes para esta clase.` }
       : {
           ok: false,

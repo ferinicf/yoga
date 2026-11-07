@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Clock, MapPin } from "lucide-react";
 import { useCurrentUser, useDB } from "@/lib/store";
+import { isClassStaff } from "@/lib/rules";
 import { endTime, longDay, timeOf } from "@/lib/utils";
 import { AttendanceList, SpotPicker } from "@/components/domain";
 import { Badge, Card, Empty, buttonClass } from "@/components/ui";
@@ -14,7 +15,8 @@ export default function TeacherClassPage() {
   const user = useCurrentUser()!;
   const session = db.sessions.find((s) => s.id === id);
 
-  if (!session || session.teacherId !== user.id) {
+  // Solo sus clases: la misma regla con la que la app y la base aceptan pasar lista o inscribir.
+  if (!session || !isClassStaff(user, session)) {
     return (
       <Empty
         title="Clase no encontrada"

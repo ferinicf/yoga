@@ -20,6 +20,19 @@ export function formatMoney(n: number): string {
   return money.format(n);
 }
 
+const moneyCents = new Intl.NumberFormat("es-MX", {
+  style: "currency",
+  currency: "MXN",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/** Como formatMoney, pero con centavos si los hay: $1,540 · $157.50 (pagos a profesores). */
+export function formatMoneyCents(n: number): string {
+  const r = Math.round(n * 100) / 100;
+  return Number.isInteger(r) ? money.format(r) : moneyCents.format(r);
+}
+
 export function fmt(date: string | Date, pattern: string): string {
   return format(typeof date === "string" ? new Date(date) : date, pattern, { locale: es });
 }

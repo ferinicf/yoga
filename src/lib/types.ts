@@ -14,6 +14,8 @@ export interface User {
   birthday?: string;
   active: boolean;
   createdAt: string;
+  /** Solo profesores: precio por alumno en cada clase (lo que se cobra por cada crédito gastado). */
+  rate?: number;
 }
 
 export interface Discipline {
@@ -64,6 +66,9 @@ export interface Session {
   capacity: number;
   status: SessionStatus;
   notes?: string;
+  /** Precio por alumno del profesor y % que le toca, congelados al crear o asignar la clase. */
+  teacherRate?: number;
+  teacherShare?: number;
 }
 
 export interface Plan {
@@ -134,6 +139,13 @@ export interface Reservation {
   /** Invitado/a de un alumno (reservar para un amigo). */
   guestName?: string;
   lateCancel?: boolean;
+  /**
+   * Solo faltas (no_show): ¿la falta gastó el crédito? Se decide al marcarla, con la
+   * penalización vigente en ESE momento (columna reservations.no_show_charged). Así, cambiar
+   * "Penalizar inasistencia" después no reescribe semanas pasadas. Vacío en datos viejos:
+   * entonces se usa la configuración actual.
+   */
+  creditCharged?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -167,11 +179,29 @@ export interface Settings {
   spotSelection: boolean;
   allowGuests: boolean;
   allowPayAtStudio: boolean;
-  /** Si no asiste, el crédito se pierde (siempre se descuenta al reservar). */
+  /**
+   * Si no asiste, el crédito se pierde (siempre se descuenta al reservar). Aplica a las faltas
+   * que se marquen de aquí en adelante: cada falta guarda su decisión (Reservation.creditCharged).
+   */
   noShowPenalty: boolean;
   currency: "MXN";
   /** Correos que entran como administrador al registrarse (solo modo real). */
   adminEmails?: string[];
+  /** % del cobro de cada clase que se lleva el profesor (el resto es del estudio). */
+  teacherShare: number;
+}
+
+/** Pago que la administración le hace a un profesor (normalmente cada domingo). */
+export interface TeacherPayout {
+  id: string;
+  teacherId: string;
+  amount: number;
+  paidAt: string;
+  /** Último día (domingo) de la semana que cubre el pago. */
+  periodEnd?: string;
+  method: PaymentMethod;
+  notes?: string;
+  createdBy: string;
 }
 
 export interface DB {
@@ -187,4 +217,7 @@ export interface DB {
   sales: Sale[];
   reservations: Reservation[];
   coupons: Coupon[];
+  payouts: TeacherPayout[];
+  /** Solo modo real: saldo histórico por profesor calculado en la base (teacher_balances). */
+  teacherBalances?: { teacherId: string; earned: number }[];
 }

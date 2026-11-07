@@ -10,6 +10,7 @@ import { longDay, timeOf } from "@/lib/utils";
 import { SessionCard } from "@/components/domain";
 import { DayStrip } from "@/components/day-strip";
 import { Card, Empty, PageHeader } from "@/components/ui";
+import { TeacherOwedCard } from "@/components/teacher-earnings";
 
 export default function TeacherHome() {
   const db = useDB();
@@ -51,6 +52,8 @@ export default function TeacherHome() {
           </Card>
         </Link>
       )}
+
+      <TeacherOwedCard teacher={user} />
 
       <DayStrip
         value={day}
