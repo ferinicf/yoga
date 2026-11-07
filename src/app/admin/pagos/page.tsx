@@ -534,7 +534,7 @@ function TeacherDetailModal({
                   return (
                     <li key={c.session.id} className="flex items-start justify-between gap-3 p-3">
                       <div className="min-w-0">
-                        <Link href={`/admin/clase/${c.session.id}`} className="inline-flex min-h-10 items-center font-medium hover:underline">
+                        <Link href={`/admin/clase?id=${encodeURIComponent(c.session.id)}`} className="inline-flex min-h-10 items-center font-medium hover:underline">
                           {capitalize(fmt(c.session.startsAt, "EEE d MMM"))} · {timeOf(c.session.startsAt)}
                         </Link>
                         <p className="flex items-center gap-1.5 text-sm text-muted">
@@ -580,7 +580,7 @@ function TeacherDetailModal({
                       return (
                         <tr key={c.session.id}>
                           <td className="whitespace-nowrap px-3 py-1">
-                            <Link href={`/admin/clase/${c.session.id}`} className="inline-flex min-h-10 items-center hover:underline">
+                            <Link href={`/admin/clase?id=${encodeURIComponent(c.session.id)}`} className="inline-flex min-h-10 items-center hover:underline">
                               {capitalize(fmt(c.session.startsAt, "EEE d MMM"))} · {timeOf(c.session.startsAt)}
                             </Link>
                           </td>
