@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { create } from "zustand";
 import { AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,8 +24,11 @@ const useToasts = create<{ items: Toast[]; push: (text: string, ok?: Tone) => vo
   items: [],
   push: (text, ok = true) => {
     const id = Date.now() + Math.random();
-    // Un aviso repetido reemplaza al anterior (y vuelve a contar su tiempo).
-    set((s) => ({ items: [...s.items.filter((t) => t.text !== text), { id, text, ok }].slice(-MAX_TOASTS) }));
+    // Un aviso repetido reemplaza al anterior (y vuelve a contar su tiempo), y cualquier aviso
+    // nuevo quita los errores anteriores: eran de un intento previo que ya no aplica.
+    set((s) => ({
+      items: [...s.items.filter((t) => t.text !== text && t.ok !== false), { id, text, ok }].slice(-MAX_TOASTS),
+    }));
     setTimeout(() => set((s) => ({ items: s.items.filter((t) => t.id !== id) })), 3800);
   },
 }));
@@ -46,7 +50,7 @@ function ToastItem({ t, inline }: { t: Toast; inline?: boolean }) {
       role="status"
       className={cn(
         "animate-sheet flex items-start gap-2 rounded-2xl px-4 py-3 text-sm",
-        inline ? "w-full" : "max-w-sm shadow-lg",
+        inline ? "w-full shadow-lg" : "max-w-sm shadow-lg",
         t.ok === "warn" ? "bg-amber-400 text-stone-900" : t.ok ? "bg-stone-900 text-white" : "bg-red-600 text-white",
       )}
     >
@@ -83,15 +87,22 @@ export function Toaster() {
   );
 }
 
-/** Avisos dentro de un modal abierto, debajo de su encabezado. */
+/**
+ * Avisos dentro de un modal abierto, bajo su encabezado. Van superpuestos (no empujan el contenido,
+ * así el modal no salta ni se mueven sus botones) y sin recibir toques. Solo se muestran los avisos
+ * generados mientras este modal está abierto: los de una acción anterior no se cuelan.
+ */
 export function ModalToasts() {
-  const items = useToasts((s) => s.items);
+  const [since] = useState(() => Date.now());
+  const items = useToasts((s) => s.items).filter((t) => t.id >= since);
   if (!items.length) return null;
   return (
-    <div aria-live="polite" className="flex shrink-0 flex-col gap-2 border-b border-line px-5 py-3">
-      {items.map((t) => (
-        <ToastItem key={t.id} t={t} inline />
-      ))}
+    <div className="relative z-10 h-0 shrink-0">
+      <div aria-live="polite" className="pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-2 px-5 pt-3">
+        {items.map((t) => (
+          <ToastItem key={t.id} t={t} inline />
+        ))}
+      </div>
     </div>
   );
 }

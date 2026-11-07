@@ -92,7 +92,14 @@ export default function AdminSessionPage() {
                       ? "Se cancelará 1 reservación y se devolverá el crédito."
                       : `Se cancelarán ${occ} reservaciones y se devolverán los créditos.`;
                 if (!confirm(`¿Cancelar esta clase? ${detail}`)) return;
-                toastDone(cancelSession(session.id), "Clase cancelada y créditos devueltos.");
+                toastDone(
+                  cancelSession(session.id),
+                  occ === 0
+                    ? "Clase cancelada."
+                    : occ === 1
+                      ? "Clase cancelada. Se canceló 1 reservación y se devolvió su crédito."
+                      : `Clase cancelada. Se cancelaron ${occ} reservaciones y se devolvieron los créditos.`,
+                );
               }}
             >
               <Ban size={16} /> Cancelar clase

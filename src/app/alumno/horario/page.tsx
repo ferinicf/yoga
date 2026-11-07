@@ -132,13 +132,16 @@ function Schedule() {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {sessions.map((s) => {
             const mine = userReservation(db, s.id, user.id);
+            // "past" = ya empezó (ya no se reserva); "ended" = ya terminó.
             const past = new Date(s.startsAt) <= now;
+            const ended = new Date(s.startsAt).getTime() + s.durationMin * 60000 <= now.getTime();
             const full = occupied(db, s.id) >= s.capacity;
             const guests = guestsIn(s.id);
             let badge;
             if (past && mine?.status === "attended") badge = <Badge tone="green">Asististe</Badge>;
             else if (past && mine?.status === "no_show") badge = <Badge tone="red">Faltaste</Badge>;
-            else if (past) badge = <Badge>Terminó</Badge>;
+            else if (ended) badge = <Badge>Terminó</Badge>;
+            else if (past) badge = <Badge tone="amber">En curso</Badge>;
             // Mismo badge (y color) que en Inicio y Mis reservaciones; un check-in anticipado no es "Asististe".
             else if (mine) badge = <ReservationStatusBadge status={mine.status} upcoming />;
             else if (full) badge = <Badge tone="amber">Lleno</Badge>;

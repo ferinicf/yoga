@@ -73,16 +73,17 @@ export function SessionCard({
       <div className="min-w-0 flex-1">
         {showDate && <p className="text-xs font-medium text-muted">{longDay(session.startsAt)}</p>}
         <p className="truncate font-semibold">{d?.name}</p>
-        {/* Si no cabe en una línea, el salón baja a la siguiente en vez de desaparecer. */}
-        <p className="flex min-w-0 flex-wrap gap-x-1 text-sm text-muted">
-          {t && <span className="max-w-full truncate">{t.name}</span>}
-          {room && <span className="max-w-full truncate">{t ? "· " : ""}{room.name}</span>}
-        </p>
-        <div className="mt-2 max-w-48">
-          {cancelled ? <Badge tone="red">Cancelada</Badge> : <Occupancy value={occ} max={session.capacity} />}
+        {/* Profesor y salón en líneas propias: el nombre completo del profesor siempre se lee. */}
+        {t && <p className="line-clamp-2 break-words text-sm text-muted">{t.name}</p>}
+        {room && <p className="truncate text-xs text-muted">{room.name}</p>}
+        {/* La acción (Reservar, estado, flecha) va en la fila de la ocupación para no quitarle ancho al texto. */}
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <div className="min-w-0 max-w-48 flex-1">
+            {cancelled ? <Badge tone="red">Cancelada</Badge> : <Occupancy value={occ} max={session.capacity} />}
+          </div>
+          {right && <div className="flex shrink-0 items-center">{right}</div>}
         </div>
       </div>
-      {right && <div className="flex shrink-0 items-center">{right}</div>}
     </Comp>
   );
 }
