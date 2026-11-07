@@ -10,7 +10,11 @@ usa el buscador de arriba de Play Console (p. ej. "Integridad de la app").
 - Una cuenta de Google (Gmail) que vayas a conservar **siempre**. Puede ser una nueva solo para el estudio.
 - Tarjeta de crédito o débito para la cuota única de **US$25**.
 - Tu identificación oficial (INE o pasaporte), con el mismo nombre que vas a registrar.
-- Un teléfono Android (Android 10 o más reciente) para una verificación de un minuto. Puede ser prestado.
+- Un **comprobante de domicilio** a tu nombre (recibo de luz, agua, teléfono o estado de cuenta). Para México, Google
+  lo pide junto con la identificación, y la dirección debe ser **idéntica** a la que escribas en el perfil de pagos.
+- Tu número de celular activo para recibir un código por SMS o llamada (se verifica al final; puede esperar).
+- Un teléfono Android (Android 10 o más reciente) para una verificación de un minuto. Puede ser prestado. Solo se
+  exige antes de publicar, no para crear la cuenta.
 - **12 o más** personas con Android y cuenta de Google para la prueba cerrada (paso 2).
 
 ---
@@ -29,10 +33,13 @@ Usa como correo de desarrollador uno que no te moleste hacer público (p. ej. el
 2. Entra a **https://play.google.com/console/signup** y elige la opción para **ti mismo (cuenta personal)**.
 3. Llena los datos:
    - **Nombre de desarrollador**: el que aparece debajo del nombre de la app. Se puede cambiar después.
-   - **Nombre legal y dirección**: exactamente como en tu identificación.
+   - **Nombre legal y dirección**: exactamente como en tu identificación y en tu comprobante de domicilio.
    - **Correo de desarrollador** (público) y **teléfono**.
+   - **Declaración de comerciante** (*trader*): desde noviembre de 2026 Google la pide al crear la cuenta. Solo
+     afecta a lo que se muestra en Europa y el Reino Unido; Marea se distribuye solo en México.
 4. Responde las preguntas sobre tu experiencia (son informativas) y paga la cuota única de **US$25**.
-5. **Verifica tu identidad** con foto de tu INE o pasaporte. Google avisa por correo; puede tardar unos días.
+5. **Verifica tu identidad** con foto de tu INE o pasaporte y tu comprobante de domicilio (a color, nítidos, no
+   fotocopias). Google avisa por correo; puede tardar unos días.
 6. **Verifica el correo y el teléfono** con los códigos que te mandan.
 7. **Verifica que tienes un teléfono Android**: en la página de inicio de Play Console aparece la tarea. Escanea el
    código QR con el teléfono, instala la app **Google Play Console**, entra con la misma cuenta y toca
