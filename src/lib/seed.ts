@@ -9,11 +9,11 @@ import type {
   Room,
   Sale,
   Session,
-  User,
-} from "./types";
+  User, TeacherPayout } from "./types";
 import { roomSpots } from "./utils";
+import { classEarnings, DEFAULT_TEACHER_SHARE, payWeek, totals } from "./payouts";
 
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 /** PRNG determinista para que el demo sea estable. */
 function rng(seed: number) {
@@ -67,10 +67,10 @@ export function createSeed(now = new Date()): DB {
 
   const users: User[] = [
     { id: "u_admin", name: "Admin Demo", email: "admin@demo.mx", phone: "55 1000 0000", role: "admin", code: "1000", color: COLORS[0], active: true, createdAt: created },
-    { id: "u_t1", name: "Ana Ramírez", email: "ana@demo.mx", phone: "55 2000 0001", role: "teacher", code: "2001", color: COLORS[1], bio: "Vinyasa y Power Yoga. Certificación RYT-500.", active: true, createdAt: created },
-    { id: "u_t2", name: "Luis Herrera", email: "luis@demo.mx", phone: "55 2000 0002", role: "teacher", code: "2002", color: COLORS[2], bio: "Hatha y alineación. 10 años enseñando.", active: true, createdAt: created },
-    { id: "u_t3", name: "Sofía Medina", email: "sofia@demo.mx", phone: "55 2000 0003", role: "teacher", code: "2003", color: COLORS[3], bio: "Yin, prenatal y meditación.", active: true, createdAt: created },
-    { id: "u_t4", name: "Diego Castro", email: "diego@demo.mx", phone: "55 2000 0004", role: "teacher", code: "2004", color: COLORS[4], bio: "Ashtanga tradicional.", active: true, createdAt: created },
+    { id: "u_t1", name: "Ana Ramírez", email: "ana@demo.mx", phone: "55 2000 0001", role: "teacher", code: "2001", color: COLORS[1], bio: "Vinyasa y Power Yoga. Certificación RYT-500.", active: true, createdAt: created, rate: 220 },
+    { id: "u_t2", name: "Luis Herrera", email: "luis@demo.mx", phone: "55 2000 0002", role: "teacher", code: "2002", color: COLORS[2], bio: "Hatha y alineación. 10 años enseñando.", active: true, createdAt: created, rate: 200 },
+    { id: "u_t3", name: "Sofía Medina", email: "sofia@demo.mx", phone: "55 2000 0003", role: "teacher", code: "2003", color: COLORS[3], bio: "Yin, prenatal y meditación.", active: true, createdAt: created, rate: 180 },
+    { id: "u_t4", name: "Diego Castro", email: "diego@demo.mx", phone: "55 2000 0004", role: "teacher", code: "2004", color: COLORS[4], bio: "Ashtanga tradicional.", active: true, createdAt: created, rate: 250 },
   ];
   const studentNames = [
     "Mariana López", "Carlos Méndez", "Valeria Torres", "Jorge Navarro", "Daniela Ruiz", "Andrea Flores",
@@ -227,7 +227,7 @@ export function createSeed(now = new Date()): DB {
     }
   }
 
-  return {
+  const db: DB = {
     version: DB_VERSION,
     settings: {
       studioName: "Marea",
@@ -247,6 +247,7 @@ export function createSeed(now = new Date()): DB {
       allowPayAtStudio: true,
       noShowPenalty: true,
       currency: "MXN",
+      teacherShare: DEFAULT_TEACHER_SHARE,
     },
     users,
     disciplines,
@@ -261,5 +262,33 @@ export function createSeed(now = new Date()): DB {
       { id: "c_1", code: "BIENVENIDA", kind: "percent", value: 15, active: true, maxUses: null, uses: 4 },
       { id: "c_2", code: "AMIGA100", kind: "amount", value: 100, active: true, maxUses: 20, uses: 7 },
     ],
+    payouts: [],
   };
+  db.payouts = seedPayouts(db, now);
+  return db;
+}
+
+/** Pagos de los domingos anteriores: cada semana completa ya se le pagó a cada profesor. */
+function seedPayouts(db: DB, now: Date): TeacherPayout[] {
+  const out: TeacherPayout[] = [];
+  const thisWeek = payWeek(now).start;
+  for (let w = 1; w <= 3; w++) {
+    const { start, end } = payWeek(subDays(thisWeek, 7 * w));
+    for (const t of db.users.filter((u) => u.role === "teacher")) {
+      const amount = totals(classEarnings(db, { teacherId: t.id, from: start, to: end, now })).teacherAmount;
+      if (amount <= 0) continue;
+      const paidAt = new Date(end);
+      paidAt.setHours(20, 0, 0, 0);
+      out.push({
+        id: `pay_${t.id}_${w}`,
+        teacherId: t.id,
+        amount,
+        paidAt: paidAt.toISOString(),
+        periodEnd: end.toISOString().slice(0, 10),
+        method: "transferencia",
+        createdBy: "u_admin",
+      });
+    }
+  }
+  return out;
 }

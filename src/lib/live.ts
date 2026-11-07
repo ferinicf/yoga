@@ -20,6 +20,7 @@ import type {
   Session,
   Settings,
   User,
+  TeacherPayout,
 } from "./types";
 
 export type Result = { ok: true; message: string; id?: string } | { ok: false; message: string };
@@ -47,6 +48,7 @@ const toSettings = (r: Row): Settings => ({
   allowPayAtStudio: r.allow_pay_at_studio,
   noShowPenalty: r.no_show_penalty,
   currency: "MXN",
+  teacherShare: Number(r.teacher_share ?? 70),
 });
 
 const toUser = (r: Row): User => ({
@@ -114,6 +116,25 @@ const toSession = (r: Row): Session => ({
   capacity: r.capacity,
   status: r.status,
   notes: r.notes ?? undefined,
+  ...sessionPay(r.session_pay),
+});
+
+/** Precio y % congelados de la clase (tabla privada session_pay: solo admin y el profesor de la clase). */
+function sessionPay(sp: Row | Row[] | null | undefined): { teacherRate?: number; teacherShare?: number } {
+  const x = Array.isArray(sp) ? sp[0] : sp;
+  if (!x) return {};
+  return { teacherRate: Number(x.teacher_rate), teacherShare: Number(x.teacher_share) };
+}
+
+const toPayout = (r: Row): TeacherPayout => ({
+  id: r.id,
+  teacherId: r.teacher_id,
+  amount: Number(r.amount),
+  paidAt: r.paid_at,
+  periodEnd: r.period_end ?? undefined,
+  method: r.method,
+  notes: r.notes ?? undefined,
+  createdBy: r.created_by ?? "",
 });
 
 const toPlan = (r: Row): Plan => ({
@@ -218,6 +239,9 @@ export async function loadAll(): Promise<{ db: DB; currentUserId: string | null 
     sales,
     reservations,
     stats,
+    payouts,
+    balances,
+    rates,
   ] = await Promise.all([
     sb.from("settings").select("*").eq("id", 1).single(),
     // Correos de administradores: solo los ve un admin (RLS); para los demás no hay fila.
@@ -229,7 +253,10 @@ export async function loadAll(): Promise<{ db: DB; currentUserId: string | null 
     all(() => sb.from("disciplines").select("*").order("name")),
     all(() => sb.from("rooms").select("*").order("name")),
     all(() => sb.from("class_templates").select("*")),
-    all(() => sb.from("sessions").select("*").gte("starts_at", from).lte("starts_at", to).order("starts_at")),
+    // session_pay viene embebido; RLS lo deja vacío para quien no es admin ni el profesor de la clase.
+    all(() =>
+      sb.from("sessions").select("*, session_pay(teacher_rate, teacher_share)").gte("starts_at", from).lte("starts_at", to).order("starts_at"),
+    ),
     all(() => sb.from("plans").select("*").order("price")),
     all(() => sb.from("coupons").select("*").order("code")),
     all(() => sb.from("memberships").select("*").order("created_at")),
@@ -238,6 +265,12 @@ export async function loadAll(): Promise<{ db: DB; currentUserId: string | null 
       sb.from("reservations").select("*, sessions!inner(starts_at)").gte("sessions.starts_at", from).order("created_at"),
     ),
     sb.rpc("session_stats", { p_from: from, p_to: to }),
+    // Pagos a profesores (RLS: el admin ve todos; cada profesor los suyos; alumnos ninguno).
+    all(() => sb.from("teacher_payouts").select("*").order("paid_at", { ascending: false })),
+    // Saldo histórico por profesor (la app solo baja los últimos meses de clases).
+    sb.rpc("teacher_balances"),
+    // Precio por alumno de cada profesor (RLS: admin todos; cada profesor el suyo).
+    all(() => sb.from("teacher_rates").select("teacher_id, rate")),
   ]);
   if (settings.error) throw settings.error;
 
@@ -246,6 +279,10 @@ export async function loadAll(): Promise<{ db: DB; currentUserId: string | null 
     if (!users.some((u) => u.id === d.id)) users.push(toPublicUser(d));
   }
   users.sort((a, b) => a.name.localeCompare(b.name, "es"));
+  for (const r of rates) {
+    const u = users.find((x) => x.id === r.teacher_id);
+    if (u) u.rate = Number(r.rate);
+  }
   const me = auth.user ? profiles.find((p) => p.auth_id === auth.user!.id) : undefined;
   const staff = me && (me.role === "admin" || me.role === "teacher");
   const mems = memberships.map(toMembership);
@@ -285,6 +322,11 @@ export async function loadAll(): Promise<{ db: DB; currentUserId: string | null 
       sales: sales.map((s) => toSale(s, mems)),
       reservations: res,
       coupons: coupons.map(toCoupon),
+      payouts: payouts.map(toPayout),
+      teacherBalances: ((balances.data as Row[] | null) ?? []).map((b) => ({
+        teacherId: b.teacher_id,
+        earned: Number(b.earned),
+      })),
     },
   };
 }
@@ -426,6 +468,7 @@ export const live = {
       allowGuests: "allow_guests",
       allowPayAtStudio: "allow_pay_at_studio",
       noShowPenalty: "no_show_penalty",
+      teacherShare: "teacher_share",
     };
     const row: Row = {};
     for (const [k, v] of Object.entries(rest)) if (map[k]) row[map[k]] = v;
@@ -460,8 +503,20 @@ export const live = {
             birthday: u.birthday ?? "",
             active: u.active,
             code: u.code,
+            rate: u.rate ?? null,
           },
         }),
+
+  recordPayout: (p: { teacherId: string; amount: number; method: PaymentMethod; periodEnd?: string; notes?: string }) =>
+    rpc("record_payout", {
+      p_teacher: p.teacherId,
+      p_amount: p.amount,
+      p_method: p.method,
+      p_period_end: p.periodEnd ?? null,
+      p_notes: p.notes ?? null,
+    }),
+
+  deletePayout: (id: string) => rpc("delete_payout", { p_id: id }),
 
   upsertTemplate: (t: ClassTemplate) => rpc("save_template", { p: t }),
   deleteTemplate: (id: string) => rpc("delete_template", { p_id: id }),

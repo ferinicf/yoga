@@ -76,6 +76,8 @@ interface DemoActions {
   updateSettings: (s: Partial<Settings>) => void;
   ensureSessions: () => void;
   resetDemo: () => void;
+  recordPayout: (p: { teacherId: string; amount: number; method: PaymentMethod; periodEnd?: string; notes?: string }) => Res;
+  deletePayout: (id: string) => Res;
 }
 
 type Async<T> = { [K in keyof T]: T[K] extends (...a: infer A) => unknown ? (...a: A) => Promise<Result> : never };
@@ -506,6 +508,13 @@ export const useStore = create<State>()(
           if (err) return { ok: false, message: err };
           mutate((d) => {
             const i = d.users.findIndex((y) => y.id === x.id);
+            const prev = i >= 0 ? d.users[i] : undefined;
+            // Cambiar el precio no reescribe clases ya dadas: congelamos el precio anterior en ellas.
+            if (prev && (prev.rate ?? 0) !== (x.rate ?? 0)) {
+              const nowIso = new Date().toISOString();
+              for (const ses of d.sessions)
+                if (ses.teacherId === x.id && ses.startsAt <= nowIso && ses.teacherRate === undefined) ses.teacherRate = prev.rate ?? 0;
+            }
             if (i >= 0) d.users[i] = x;
             else d.users.push(x);
           });
@@ -521,8 +530,42 @@ export const useStore = create<State>()(
 
         updateSettings: (s) =>
           mutate((d) => {
+            // Igual que con el precio: un nuevo % del profesor no cambia las clases ya dadas.
+            if (s.teacherShare !== undefined && s.teacherShare !== d.settings.teacherShare) {
+              const nowIso = new Date().toISOString();
+              for (const ses of d.sessions)
+                if (ses.startsAt <= nowIso && ses.teacherShare === undefined) ses.teacherShare = d.settings.teacherShare;
+            }
             d.settings = { ...d.settings, ...s };
           }),
+
+        recordPayout: (p) => {
+          if (!(p.amount > 0)) return { ok: false, message: "El monto debe ser mayor a cero." };
+          const teacher = get().db.users.find((u) => u.id === p.teacherId && u.role === "teacher");
+          if (!teacher) return { ok: false, message: "Profesor no encontrado." };
+          const id = uid("pay");
+          mutate((d) => {
+            d.payouts.push({
+              id,
+              teacherId: p.teacherId,
+              amount: Math.round(p.amount * 100) / 100,
+              paidAt: new Date().toISOString(),
+              periodEnd: p.periodEnd,
+              method: p.method,
+              notes: p.notes,
+              createdBy: get().currentUserId ?? "",
+            });
+          });
+          return { ok: true, id, message: `Pago a ${teacher.name} registrado.` };
+        },
+
+        deletePayout: (id) => {
+          if (!get().db.payouts.some((x) => x.id === id)) return { ok: false, message: "Pago no encontrado." };
+          mutate((d) => {
+            d.payouts = d.payouts.filter((x) => x.id !== id);
+          });
+          return { ok: true, message: "Pago eliminado." };
+        },
 
         ensureSessions: () => {
           const db = get().db;
@@ -621,6 +664,8 @@ export const useStore = create<State>()(
           demo.resetDemo();
           return { ok: true, message: "Datos de ejemplo restablecidos." };
         },
+        recordPayout: (p) => run(() => live.recordPayout(p), () => demo.recordPayout(p)),
+        deletePayout: (id) => run(() => live.deletePayout(id), () => demo.deletePayout(id)),
       };
     },
     {
