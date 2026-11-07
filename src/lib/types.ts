@@ -139,6 +139,13 @@ export interface Reservation {
   /** Invitado/a de un alumno (reservar para un amigo). */
   guestName?: string;
   lateCancel?: boolean;
+  /**
+   * Solo faltas (no_show): ¿la falta gastó el crédito? Se decide al marcarla, con la
+   * penalización vigente en ESE momento (columna reservations.no_show_charged). Así, cambiar
+   * "Penalizar inasistencia" después no reescribe semanas pasadas. Vacío en datos viejos:
+   * entonces se usa la configuración actual.
+   */
+  creditCharged?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -172,7 +179,10 @@ export interface Settings {
   spotSelection: boolean;
   allowGuests: boolean;
   allowPayAtStudio: boolean;
-  /** Si no asiste, el crédito se pierde (siempre se descuenta al reservar). */
+  /**
+   * Si no asiste, el crédito se pierde (siempre se descuenta al reservar). Aplica a las faltas
+   * que se marquen de aquí en adelante: cada falta guarda su decisión (Reservation.creditCharged).
+   */
   noShowPenalty: boolean;
   currency: "MXN";
   /** Correos que entran como administrador al registrarse (solo modo real). */

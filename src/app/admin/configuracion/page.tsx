@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { RotateCcw, Save } from "lucide-react";
 import { useSettings, useStore } from "@/lib/store";
 import type { Settings } from "@/lib/types";
+import { DEFAULT_TEACHER_SHARE } from "@/lib/payouts";
+import { formatMoneyCents } from "@/lib/utils";
 import { brandInk, brandText, contrastRatio } from "@/components/providers";
 import { toast, toastDone } from "@/components/toast";
 import { Button, Card, Field, Input, PageHeader, Toggle } from "@/components/ui";
@@ -14,6 +17,17 @@ const BRAND_PRESETS = ["#5B7F6E", "#7A6A8F", "#B0705A", "#4F6D8A", "#8A7354", "#
 const BG_COLORS = ["#f7f5f1", "#ffffff"];
 /** Contraste mínimo recomendable para texto en color de marca (WCAG, texto grande / componentes). */
 const MIN_TEXT_CONTRAST = 3;
+
+/** Error del "% para el profesor" (vacío, fuera de 0–100 o con más de 2 decimales), o null. */
+function shareError(share: number): string | null {
+  if (!Number.isFinite(share)) return "Escribe el % para el profesor, de 0 a 100.";
+  if (share < 0 || share > 100) return "El % para el profesor debe estar entre 0 y 100.";
+  if (Math.abs(share * 100 - Math.round(share * 100)) > 1e-6) return "Usa a lo más 2 decimales (p. ej. 70.5).";
+  return null;
+}
+
+/** 70.5 → "70.5%" (sin colas de decimales como 29.450000000000003). */
+const pct = (n: number) => `${Math.round(n * 100) / 100}%`;
 
 function LimitField({ label, hint, value, onChange }: { label: string; hint: string; value: number | null; onChange: (v: number | null) => void }) {
   return (
@@ -38,10 +52,17 @@ export default function SettingsPage() {
   const ink = brandInk(s.brandColor);
   const textContrast = validColor ? Math.min(...BG_COLORS.map((bg) => contrastRatio(s.brandColor, bg))) : 21;
   const lowContrast = textContrast < MIN_TEXT_CONTRAST;
+  const share = s.teacherShare ?? DEFAULT_TEACHER_SHARE;
+  const savedShare = settings.teacherShare ?? DEFAULT_TEACHER_SHARE;
+  const shareMsg = shareError(share);
+  // Vista previa (solo con un % válido): 10 alumnos a $200, en centavos como el cobro real.
+  const shareBp = Math.round(share * 100);
+  const exampleTeacherCents = shareMsg ? null : Math.round((200000 * shareBp) / 10000);
 
   const save = () => {
     if (!s.studioName.trim()) return toast("El nombre del estudio es obligatorio.", false);
     if (!/^#[0-9a-fA-F]{6}$/.test(s.brandColor)) return toast("El color debe tener formato #RRGGBB.", false);
+    if (shareMsg) return toast(shareMsg, false);
     toastDone(update({ ...s, studioName: s.studioName.trim() }), "Configuración guardada.");
   };
 
@@ -144,6 +165,66 @@ export default function SettingsPage() {
             <Toggle checked={s.allowPayAtStudio} onChange={(v) => set("allowPayAtStudio", v)} label="Pagar en el estudio" hint="El alumno aparta un paquete en la app y paga en recepción." />
             <Toggle checked={s.noShowPenalty} onChange={(v) => set("noShowPenalty", v)} label="Penalizar inasistencia" hint="Si no asiste, el crédito no se devuelve." />
           </div>
+        </Card>
+
+        <Card className="space-y-4 p-5 lg:col-span-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+            <h2 className="text-lg font-semibold">Pagos a profesores</h2>
+            <Link href="/admin/pagos" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-text">
+              Ver pagos
+            </Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Field label="% para el profesor" hint="De 0 a 100, hasta con 2 decimales. El estudio se queda con el resto. El precio por alumno se define en cada profesor.">
+                <NumberInput
+                  decimals
+                  allowEmpty
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={share}
+                  onChange={(v) => set("teacherShare", v)}
+                  aria-invalid={!!shareMsg}
+                  aria-describedby={shareMsg ? "share-error" : undefined}
+                />
+              </Field>
+              {shareMsg && (
+                <p id="share-error" className="mt-1 text-sm text-red-700" role="alert">
+                  {shareMsg}
+                </p>
+              )}
+            </div>
+            <div className="rounded-2xl bg-bg p-3">
+              <p className="mb-2 text-xs text-muted">De cada cobro</p>
+              {exampleTeacherCents === null ? (
+                <p className="text-sm text-muted">Escribe un % válido para ver cómo se reparte.</p>
+              ) : (
+                <>
+                  <p className="text-sm font-medium">
+                    Profesor {pct(share)} · Estudio {pct((10000 - shareBp) / 100)}
+                  </p>
+                  <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-stone-200" aria-hidden>
+                    <div className="h-full bg-brand" style={{ width: `${share}%` }} />
+                  </div>
+                  <p className="mt-2 text-xs text-muted">
+                    Ej. con 10 alumnos a $200: profesor {formatMoneyCents(exampleTeacherCents / 100)} · estudio{" "}
+                    {formatMoneyCents((200000 - exampleTeacherCents) / 100)}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+          <p
+            className={
+              !shareMsg && share !== savedShare
+                ? "rounded-xl bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200"
+                : "text-xs text-muted"
+            }
+            role={!shareMsg && share !== savedShare ? "status" : undefined}
+          >
+            El cambio aplica a las clases que aún no empiezan; las clases ya dadas conservan el % con el que se dieron.
+          </p>
         </Card>
 
         {isLive ? (

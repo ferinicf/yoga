@@ -30,6 +30,7 @@ import {
   checkBooking,
   couponDiscount,
   freeSpots,
+  isClassStaff,
   occupied,
   OCCUPYING,
   pendingPurchase,
@@ -49,7 +50,12 @@ type Res = Result;
 
 /** Acciones del modo demo (síncronas, sobre los datos locales). */
 interface DemoActions {
+  /**
+   * `staff` se ignora (se conserva por compatibilidad): igual que book_session, quién es
+   * personal de la clase se deduce de la persona en sesión (admin, o el profesor de ESA clase).
+   */
   book: (sessionId: string, userId: string, opts?: { spot?: string; guestName?: string; staff?: boolean }) => Res;
+  /** `refund` solo lo decide el personal de la clase; `staff` se ignora (se deduce de la sesión). */
   cancelReservation: (reservationId: string, opts?: { staff?: boolean; refund?: boolean }) => Res;
   setAttendance: (reservationId: string, status: "attended" | "no_show" | "booked") => Res;
   checkInByCode: (sessionId: string, code: string) => Res;
@@ -128,16 +134,28 @@ export const useStore = create<State>()(
         }
       };
 
+      /** Quién está en sesión (en demo, la persona elegida al entrar). */
+      const actorOf = (db: DB) => db.users.find((u) => u.id === get().currentUserId);
+      /** Admin o profesor activo (= is_staff() en la base). */
+      const isStaffUser = (u: User | undefined): u is User =>
+        !!u && u.active && (u.role === "admin" || u.role === "teacher");
+
       const demo: DemoActions = {
 
         book: (sessionId, userId, opts = {}) => {
           const db = get().db;
+          const actor = actorOf(db);
+          if (!actor) return { ok: false, message: "Inicia sesión para reservar." };
           const session = db.sessions.find((s) => s.id === sessionId);
           const user = db.users.find((u) => u.id === userId);
           if (!session || !user) return { ok: false, message: "Clase no encontrada." };
+          // Personal de ESTA clase: el admin en todas; un profesor solo en las suyas (igual que book_session).
+          const staff = isClassStaff(actor, session);
+          if (userId !== actor.id && !staff) return { ok: false, message: "No autorizado." };
+          const other = staff && userId !== actor.id;
           const isGuest = opts.guestName !== undefined;
           const guestName = opts.guestName?.trim().replace(/\s+/g, " ");
-          const check = checkBooking(db, user, session, { guestName: opts.guestName, staff: opts.staff });
+          const check = checkBooking(db, user, session, { guestName: opts.guestName, staff, other });
           if (!check.ok) return { ok: false, message: check.reason };
           if (!check.full && db.settings.spotSelection && opts.spot) {
             if (!freeSpots(db, session).includes(opts.spot))
@@ -167,7 +185,7 @@ export const useStore = create<State>()(
           });
           // Mismos textos que book_session (modo real).
           if (check.full) {
-            const who = isGuest ? guestName : opts.staff ? user.name : undefined;
+            const who = isGuest ? guestName : other ? user.name : undefined;
             return {
               ok: true,
               id,
@@ -178,22 +196,26 @@ export const useStore = create<State>()(
           }
           if (isGuest)
             return { ok: true, id, message: `¡Listo! Reservamos un lugar para ${guestName}${spot ? ` (lugar ${spot})` : ""}.` };
-          return { ok: true, id, message: opts.staff ? `${user.name} quedó inscrito/a en la clase.` : "¡Reservación confirmada!" };
+          return { ok: true, id, message: other ? `${user.name} quedó inscrito/a en la clase.` : "¡Reservación confirmada!" };
         },
 
         cancelReservation: (reservationId, opts = {}) => {
           const db = get().db;
+          const actor = actorOf(db);
           const r = db.reservations.find((x) => x.id === reservationId);
-          if (!r) return { ok: false, message: "Reservación no encontrada." };
+          const session = r && db.sessions.find((s) => s.id === r.sessionId);
+          // Personal de ESTA clase (igual que cancel_reservation); en clases ajenas, "no encontrada".
+          const staff = !!session && isClassStaff(actor, session);
+          if (!r || !session || !actor || (r.userId !== actor.id && !staff))
+            return { ok: false, message: "Reservación no encontrada." };
           if (r.status === "cancelled") return { ok: false, message: "Ya estaba cancelada." };
-          const session = db.sessions.find((s) => s.id === r.sessionId)!;
-          if (!opts.staff && new Date(session.startsAt) <= new Date())
+          if (!staff && new Date(session.startsAt) <= new Date())
             return { ok: false, message: "La clase ya comenzó; no se puede cancelar." };
           const wasWaitlist = r.status === "waitlist";
           // Solo el personal puede decidir el reembolso; para el alumno depende de las horas que faltan.
           const refund = wasWaitlist
             ? false
-            : opts.staff && opts.refund !== undefined
+            : staff && opts.refund !== undefined
               ? opts.refund
               : canCancelWithRefund(db, session);
           const membership = r.membershipId ? db.memberships.find((m) => m.id === r.membershipId) : undefined;
@@ -211,7 +233,7 @@ export const useStore = create<State>()(
           return {
             ok: true,
             message: cancelMessage({
-              staff: opts.staff,
+              staff: staff && r.userId !== actor.id,
               waitlist: wasWaitlist,
               refund,
               usesCredit: !!membership && membership.credits !== null,
@@ -224,22 +246,31 @@ export const useStore = create<State>()(
 
         setAttendance: (reservationId, status) => {
           const db = get().db;
+          const actor = actorOf(db);
+          if (!isStaffUser(actor)) return { ok: false, message: "No autorizado." };
           const r = db.reservations.find((x) => x.id === reservationId);
-          if (!r || !OCCUPYING.includes(r.status) || r.status === status) return { ok: true, message: "Sin cambios." };
-          // Marcar asistencia o falta solo desde 60 min antes de la clase (quitar la marca, siempre).
+          if (!r) return { ok: true, message: "Sin cambios." };
           const session = db.sessions.find((s) => s.id === r.sessionId);
+          // Solo el admin o el profesor de ESTA clase pasan lista (igual que set_attendance).
+          if (!isClassStaff(actor, session ?? { teacherId: "" })) return { ok: false, message: "No autorizado." };
+          if (!OCCUPYING.includes(r.status) || r.status === status) return { ok: true, message: "Sin cambios." };
+          // Marcar asistencia o falta solo desde 60 min antes de la clase (quitar la marca, siempre).
           if (status !== "booked" && session) {
             const can = checkAttendance(session);
             if (!can.ok) return { ok: false, message: can.reason };
           }
           mutate((d) => {
             const x = d.reservations.find((y) => y.id === reservationId)!;
-            // Sin penalización por inasistencia, marcar falta devuelve el crédito (y quitarla lo vuelve a cobrar).
-            if (!d.settings.noShowPenalty && x.membershipId) {
-              const m = d.memberships.find((mm) => mm.id === x.membershipId);
-              if (m && status === "no_show") m.creditsUsed = Math.max(0, m.creditsUsed - 1);
-              if (m && x.status === "no_show") m.creditsUsed += 1;
+            const m = x.membershipId ? d.memberships.find((mm) => mm.id === x.membershipId) : undefined;
+            if (m) {
+              // Sin penalización por inasistencia, marcar falta devuelve el crédito. Quitar una falta
+              // lo vuelve a cobrar solo si esa falta lo devolvió (lo que se decidió al marcarla).
+              if (status === "no_show" && !d.settings.noShowPenalty) m.creditsUsed = Math.max(0, m.creditsUsed - 1);
+              else if (x.status === "no_show" && !(x.creditCharged ?? d.settings.noShowPenalty)) m.creditsUsed += 1;
             }
+            // Cada falta guarda si gastó el crédito con la regla de ESTE momento (no_show_charged).
+            if (status === "no_show") x.creditCharged = d.settings.noShowPenalty || !x.membershipId;
+            else delete x.creditCharged;
             x.status = status;
             x.updatedAt = now();
           });
@@ -248,8 +279,12 @@ export const useStore = create<State>()(
 
         checkInByCode: (sessionId, code) => {
           const db = get().db;
+          const actor = actorOf(db);
+          if (!isStaffUser(actor)) return { ok: false, message: "No autorizado." };
           const session = db.sessions.find((s) => s.id === sessionId);
           if (!session) return { ok: false, message: "Clase no encontrada." };
+          // Solo el admin o el profesor de ESTA clase (igual que check_in_by_code).
+          if (!isClassStaff(actor, session)) return { ok: false, message: "No autorizado." };
           const can = checkAttendance(session);
           if (!can.ok) return { ok: false, message: can.reason };
           const user = db.users.find((u) => u.code === code.trim() && u.role === "student");

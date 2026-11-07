@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { addDays, endOfDay, startOfMonth, subMonths } from "date-fns";
-import { AlertCircle, CalendarCheck, CalendarDays, Clock, Gauge, Plus, Users, Wallet } from "lucide-react";
+import { AlertCircle, CalendarCheck, CalendarDays, ChevronRight, Clock, Gauge, HandCoins, Plus, Users, Wallet } from "lucide-react";
 import { useCurrentUser, useDB } from "@/lib/store";
 import { activeStudents, occupied, sessionsOn } from "@/lib/rules";
+import { classEarnings, payWeek, sumMoney, teacherBalance, teachers, totals, weekPayStatus } from "@/lib/payouts";
 import type { Sale } from "@/lib/types";
-import { capitalize, fmt, formatMoney, longDay } from "@/lib/utils";
+import { capitalize, fmt, formatMoney, formatMoneyCents, longDay } from "@/lib/utils";
 import { SessionCard } from "@/components/domain";
 import { Avatar, Button, Card, Empty, PageHeader } from "@/components/ui";
 import { RevenueChart, StatTile } from "@/components/admin/charts";
 import { ConfirmSaleModal, saleMethodLabel } from "@/components/admin/confirm-sale-modal";
+import { weekLabel } from "@/components/admin/payout-modal";
 
 export default function AdminDashboard() {
   const db = useDB();
@@ -50,9 +52,23 @@ export default function AdminDashboard() {
       return { label: capitalize(fmt(start, "MMM")), value: revenueIn(start, end), current: i === 5 };
     });
 
+    // Pagos a profesores: lo que se les debe hoy (saldo de todas las semanas) y, aparte, lo que
+    // va de la semana de pago actual. "De semanas anteriores" = lo que se debe y no es de esta semana.
+    const payweek = payWeek(now);
+    const weekPay = totals(classEarnings(db, { from: payweek.start, to: payweek.end, now }));
+    const debts = teachers(db)
+      .map((t) => ({ owed: teacherBalance(db, t.id, now).owed, thisWeek: weekPayStatus(db, t.id, payweek.start, now).pending }))
+      .filter((x) => x.owed > 0);
+    const owed = debts.map((x) => x.owed);
+
     return {
       month,
       delta,
+      teachersOwed: sumMoney(owed),
+      teachersOwedCount: owed.length,
+      teachersOwedBefore: sumMoney(debts.map((x) => x.owed - x.thisWeek)),
+      weekPay,
+      payWeek: payweek,
       today,
       reservasHoy,
       occPct: cap ? Math.round((occ / cap) * 100) : 0,
@@ -113,6 +129,51 @@ export default function AdminDashboard() {
         </section>
 
         <div className="min-w-0 space-y-6 lg:col-span-2">
+          <Link href="/admin/pagos" className="block rounded-2xl transition hover:shadow-sm">
+            <Card className="p-4">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-semibold">Pagos a profesores</h2>
+                <HandCoins size={16} className="shrink-0 text-muted" />
+              </div>
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-muted">Les debemos hoy</p>
+                  <p className="text-2xl font-semibold tabular-nums tracking-tight md:text-3xl">{formatMoneyCents(stats.teachersOwed)}</p>
+                  <p className="text-xs text-muted">
+                    {stats.teachersOwedCount === 0
+                      ? "Estás al corriente con todos"
+                      : `A ${stats.teachersOwedCount} ${stats.teachersOwedCount === 1 ? "profesor" : "profesores"}${
+                          stats.teachersOwedBefore > 0 ? `, ${formatMoneyCents(stats.teachersOwedBefore)} de semanas anteriores` : ""
+                        }`}{" "}
+                    · se paga el {fmt(stats.payWeek.end, "EEEE d MMM")}
+                  </p>
+                </div>
+                <span className="inline-flex min-h-11 shrink-0 items-center gap-0.5 text-sm font-medium text-brand-text">
+                  Ver pagos <ChevronRight size={16} />
+                </span>
+              </div>
+              <div className="mt-3 border-t border-line pt-3">
+                <p className="text-xs text-muted">
+                  Esta semana, hasta hoy <span className="whitespace-nowrap">({weekLabel(stats.payWeek.start, stats.payWeek.end)})</span>
+                </p>
+                <dl className="mt-1.5 grid grid-cols-3 gap-2">
+                  <div className="min-w-0">
+                    <dt className="text-xs text-muted">Cobro</dt>
+                    <dd className="truncate text-sm font-semibold tabular-nums">{formatMoneyCents(stats.weekPay.charge)}</dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-xs text-muted">Profesores</dt>
+                    <dd className="truncate text-sm font-semibold tabular-nums">{formatMoneyCents(stats.weekPay.teacherAmount)}</dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-xs text-muted">Estudio</dt>
+                    <dd className="truncate text-sm font-semibold tabular-nums">{formatMoneyCents(stats.weekPay.studioAmount)}</dd>
+                  </div>
+                </dl>
+              </div>
+            </Card>
+          </Link>
+
           <Card className="p-4">
             <h2 className="font-semibold">Ingresos por mes</h2>
             <p className="mb-4 text-xs text-muted">Ventas pagadas, últimos 6 meses</p>

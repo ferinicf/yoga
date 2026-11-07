@@ -1,4 +1,4 @@
-import { addDays, startOfDay, subDays } from "date-fns";
+import { addDays, format, startOfDay, subDays } from "date-fns";
 import type {
   ClassTemplate,
   DB,
@@ -206,13 +206,16 @@ export function createSeed(now = new Date()): DB {
       if (!m) continue;
       m.creditsUsed += 1;
       busy.add(dayKey);
+      const status: Reservation["status"] = past ? (rand() < 0.9 ? "attended" : "no_show") : "booked";
       reservations.push({
         id: `res_${reservations.length + 1}`,
         sessionId: s.id,
         userId: u.id,
         spot: spots[placed],
-        status: past ? (rand() < 0.9 ? "attended" : "no_show") : "booked",
+        status,
         membershipId: m.id,
+        // El demo penaliza las faltas: la falta gastó el crédito (no se devolvió).
+        ...(status === "no_show" && { creditCharged: true }),
         createdAt: iso(subDays(start, 1 + Math.floor(rand() * 4))),
         updatedAt: iso(subDays(start, 1)),
       });
@@ -284,7 +287,8 @@ function seedPayouts(db: DB, now: Date): TeacherPayout[] {
         teacherId: t.id,
         amount,
         paidAt: paidAt.toISOString(),
-        periodEnd: end.toISOString().slice(0, 10),
+        // Fecha local del domingo (toISOString daría el lunes en UTC).
+        periodEnd: format(end, "yyyy-MM-dd"),
         method: "transferencia",
         createdBy: "u_admin",
       });

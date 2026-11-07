@@ -189,6 +189,8 @@ const toReservation = (r: Row): Reservation => ({
   membershipId: r.membership_id ?? undefined,
   guestName: r.guest_name ?? undefined,
   lateCancel: r.late_cancel,
+  // Solo faltas: si la falta gastó el crédito (0007). null en filas viejas → regla actual.
+  creditCharged: r.no_show_charged ?? undefined,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
@@ -223,6 +225,9 @@ export async function loadAll(): Promise<{ db: DB; currentUserId: string | null 
   const { data: auth } = await sb.auth.getUser();
   const from = subDays(new Date(), 120).toISOString();
   const to = addDays(new Date(), 60).toISOString();
+  // Sin sesión no se piden pagos ni precios de profesores: teacher_balances solo lo puede
+  // ejecutar un usuario con sesión (sin ella responde 401 y ensucia la consola del acceso).
+  const signedIn = !!auth.user;
 
   const [
     settings,
@@ -266,11 +271,11 @@ export async function loadAll(): Promise<{ db: DB; currentUserId: string | null 
     ),
     sb.rpc("session_stats", { p_from: from, p_to: to }),
     // Pagos a profesores (RLS: el admin ve todos; cada profesor los suyos; alumnos ninguno).
-    all(() => sb.from("teacher_payouts").select("*").order("paid_at", { ascending: false })),
+    signedIn ? all(() => sb.from("teacher_payouts").select("*").order("paid_at", { ascending: false })) : Promise.resolve([] as Row[]),
     // Saldo histórico por profesor (la app solo baja los últimos meses de clases).
-    sb.rpc("teacher_balances"),
+    signedIn ? sb.rpc("teacher_balances") : Promise.resolve({ data: [] as Row[], error: null }),
     // Precio por alumno de cada profesor (RLS: admin todos; cada profesor el suyo).
-    all(() => sb.from("teacher_rates").select("teacher_id, rate")),
+    signedIn ? all(() => sb.from("teacher_rates").select("teacher_id, rate")) : Promise.resolve([] as Row[]),
   ]);
   if (settings.error) throw settings.error;
 
