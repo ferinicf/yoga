@@ -81,7 +81,7 @@ export default function StudentsPage() {
           <ul className="space-y-2 md:hidden">
             {rows.map(({ u, active, pending, credits, nextExp }) => (
               <li key={u.id}>
-                <Link href={`/admin/alumnos/${u.id}`} className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3">
+                <Link href={`/admin/alumnos/ficha?id=${encodeURIComponent(u.id)}`} className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3">
                   <Avatar name={u.name} color={u.color} size={44} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{u.name}</p>
@@ -116,7 +116,7 @@ export default function StudentsPage() {
                 {rows.map(({ u, active, pending, credits, nextExp, expiring }) => (
                   <tr key={u.id} className="hover:bg-bg">
                     <td className="px-4 py-2">
-                      <Link href={`/admin/alumnos/${u.id}`} className="flex min-h-11 items-center gap-3">
+                      <Link href={`/admin/alumnos/ficha?id=${encodeURIComponent(u.id)}`} className="flex min-h-11 items-center gap-3">
                         <Avatar name={u.name} color={u.color} size={36} />
                         <span className="min-w-0">
                           <span className="block truncate font-medium">{u.name}</span>

@@ -9,6 +9,7 @@ import { creditsLeft } from "@/lib/rules";
 import { fmt, formatMoney, PAYMENT_LABEL } from "@/lib/utils";
 import { toast, toastResult } from "@/components/toast";
 import { Avatar, Badge, Button, Card, Field, Input, PageHeader, phoneError, phoneInputProps } from "@/components/ui";
+import { DeleteAccount } from "@/components/delete-account";
 
 export default function ProfilePage() {
   const db = useDB();
@@ -162,6 +163,8 @@ export default function ProfilePage() {
           ))}
         </Card>
       </section>
+
+      <DeleteAccount />
     </div>
   );
 }

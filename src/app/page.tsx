@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight, GraduationCap, ShieldCheck, User as UserIcon } from "lucide-react";
 import { useCurrentUser, useDB, useStore } from "@/lib/store";
@@ -8,6 +8,8 @@ import { supabase } from "@/lib/supabase";
 import type { Role } from "@/lib/types";
 import { Avatar, Button, Card, Field, Input, Segmented, phoneError, phoneInputProps, textLinkClass } from "@/components/ui";
 import { toast } from "@/components/toast";
+import { emailLinkOrigin, forwardDone, takeForwardTarget } from "@/app/_lib/enlaces";
+import { takePendingDeepLink } from "@/lib/native";
 
 const HOME: Record<Role, string> = { admin: "/admin", teacher: "/profesor", student: "/alumno" };
 
@@ -16,9 +18,20 @@ export default function LoginPage() {
   const user = useCurrentUser();
   const mode = useStore((s) => s.mode);
   const router = useRouter();
+  const forwarding = useRef(false);
 
+  // En la app de iOS/Android, recargar otra pantalla abre esta con la URL de aquella: se reenvía.
   useEffect(() => {
-    if (user) router.replace(HOME[user.role]);
+    const target = takeForwardTarget();
+    if (!target) return;
+    forwarding.current = true;
+    router.replace(target);
+    return forwardDone;
+  }, [router]);
+
+  // Con sesión, al inicio del rol; o, en la app, a la pantalla de un enlace marea://… que se esté abriendo.
+  useEffect(() => {
+    if (user && !forwarding.current) router.replace(takePendingDeepLink() ?? HOME[user.role]);
   }, [user, router]);
 
   return (
@@ -78,14 +91,14 @@ function LiveLogin() {
           password: form.password,
           options: {
             data: { name: form.name.trim(), phone: form.phone.trim() },
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: emailLinkOrigin(),
           },
         });
         if (error) return toast(authError(error.message), false);
         if (data.session) await refresh();
         else setSent(`Te enviamos un correo a ${email}. Abre el enlace para confirmar tu cuenta y luego inicia sesión.`);
       } else {
-        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/restablecer` });
+        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${emailLinkOrigin()}/restablecer` });
         if (error) return toast(authError(error.message), false);
         setSent(`Si existe una cuenta con ${email}, te llegará un correo para crear una nueva contraseña.`);
       }

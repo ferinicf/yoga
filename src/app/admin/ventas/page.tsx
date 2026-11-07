@@ -142,7 +142,7 @@ export default function SalesPage() {
               return (
                 <li key={s.id} className="rounded-2xl border border-line bg-surface p-3">
                   <div className="flex items-start gap-3">
-                    <Link href={`/admin/alumnos/${s.userId}`} className="-m-1 flex min-h-11 min-w-0 flex-1 items-start gap-3 rounded-xl p-1 hover:bg-bg">
+                    <Link href={`/admin/alumnos/ficha?id=${encodeURIComponent(s.userId)}`} className="-m-1 flex min-h-11 min-w-0 flex-1 items-start gap-3 rounded-xl p-1 hover:bg-bg">
                       {u && <Avatar name={u.name} color={u.color} size={36} />}
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{u?.name}</p>
@@ -187,7 +187,7 @@ export default function SalesPage() {
                     <tr key={s.id}>
                       <td className="whitespace-nowrap px-3 py-2 tabular-nums text-muted">{fmt(s.createdAt, "d MMM HH:mm")}</td>
                       <td className="px-3 py-2">
-                        <Link href={`/admin/alumnos/${s.userId}`} className="inline-flex min-h-11 items-center font-medium hover:underline">
+                        <Link href={`/admin/alumnos/ficha?id=${encodeURIComponent(s.userId)}`} className="inline-flex min-h-11 items-center font-medium hover:underline">
                           {u?.name}
                         </Link>
                       </td>

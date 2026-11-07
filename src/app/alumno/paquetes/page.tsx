@@ -9,6 +9,7 @@ import type { Plan } from "@/lib/types";
 import { cn, fmt, formatMoney, timeOf } from "@/lib/utils";
 import { toast, toastResult } from "@/components/toast";
 import { quoteCoupon } from "@/lib/live";
+import { isNative } from "@/lib/native";
 import { Badge, Button, Card, Input, Modal, PageHeader } from "@/components/ui";
 
 export default function PlansPage() {
@@ -245,7 +246,9 @@ function Plans() {
                 <span>
                   <span className="block text-sm font-medium">Pago en recepción</span>
                   <span className="block text-xs text-muted">
-                    Tu paquete queda apartado y se activa cuando el estudio confirme tu pago. El pago en línea llegará pronto.
+                    Tu paquete queda apartado y se activa cuando el estudio confirme tu pago.
+                    {/* En la app de las tiendas no se anuncian funciones futuras (App Store 2.1). */}
+                    {!isNative() && " El pago en línea llegará pronto."}
                   </span>
                 </span>
               </div>
