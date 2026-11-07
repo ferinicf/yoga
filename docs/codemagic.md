@@ -2,7 +2,7 @@
 
 Codemagic compila la app en una **Mac en la nube** y entrega el archivo para cada tienda: el `.aab` de Google
 Play y la compilación de iPhone/iPad que sube sola a **TestFlight**. Es la **única vía** de este proyecto: no
-necesitas Mac ni instalar nada en tu computadora. Es el mismo servicio que ya usas con Bacco.
+necesitas Mac ni instalar nada en tu computadora.
 
 La configuración está en el archivo `codemagic.yaml` (raíz del repositorio `ferinicf/yoga`). Trae tres flujos:
 
@@ -26,7 +26,7 @@ descarga lo que quieras conservar.
 
 ### 1. Conectar el repositorio
 
-1. Entra a **https://codemagic.io** con tu cuenta (la misma de Bacco).
+1. Entra a **https://codemagic.io** con tu cuenta.
 2. **Add application** (arriba a la derecha).
 3. Elige **GitHub**. Si Codemagic no ve el repositorio, toca **Install GitHub App**, elige tu cuenta de GitHub y
    en *Repository access* agrega **`ferinicf/yoga`** (o "All repositories") → **Install & Authorize**.
@@ -38,43 +38,68 @@ descarga lo que quieras conservar.
 > Si la app queda en un **equipo** (Team) de Codemagic, los menús dicen *Team settings* en lugar de los de tu
 > cuenta personal. Todo lo demás es igual.
 
-### 2. Integración de App Store Connect (ya la tienes: `Bacco-AppStoreConnect`)
+### 2. Llave de la API de App Store Connect solo para Marea (nombre: `Marea`)
 
-La integración es una llave de la API de **tu cuenta de Apple**, no de una app, así que sirve igual para Marea.
+Codemagic usa esta llave para firmar la app y subirla a TestFlight. Marea tiene **su propia llave**: no comparte
+llaves ni certificados con ninguna otra app. Lo único común es tu cuenta de Apple Developer (a tu nombre), que es
+la misma para todas tus apps.
 
-1. En Codemagic abre la configuración de tu cuenta (o *Team settings → Team integrations* si usas un equipo) →
-   **Integrations** → **Developer Portal** → **Manage keys**.
-2. Revisa el **nombre** de la llave. Tiene que ser **exactamente** `Bacco-AppStoreConnect`, como en
-   `codemagic.yaml` (línea `app_store_connect:`). Si se llama distinto, pídele al desarrollador que cambie esa línea.
-3. Esa llave necesita el rol **Admin** o **App Manager** en App Store Connect (con el de Bacco ya funciona).
+**a) Crear la llave en App Store Connect**
 
-### 3. Grupo de variables `marea` (certificado de Apple)
+1. Entra a **https://appstoreconnect.apple.com** → **Usuarios y acceso** → pestaña **Integraciones** →
+   **API de App Store Connect** → **Claves del equipo**.
+2. Toca **+** (Generar clave de API).
+   - **Nombre**: `Marea Codemagic`.
+   - **Acceso**: **App Manager** (basta para firmar y subir; no le des **Admin**).
+   - **Generar**.
+3. En la fila de la llave nueva toca **Descargar clave de API**. Se descarga un archivo `AuthKey_XXXXXXXXXX.p8`.
+   **Apple solo deja descargarlo una vez**: guárdalo enseguida en tu gestor de contraseñas.
+4. Anota dos datos de esa misma página (no son secretos, pero los vas a pegar en Codemagic):
+   - **ID de la clave** (*Key ID*): la columna junto al nombre, p. ej. `ABC123DEFG`.
+   - **ID del emisor** (*Issuer ID*): arriba de la lista, con formato `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
 
-Codemagic firma la app con tu **certificado de distribución de Apple**. Solo necesita su llave privada, en una
-variable llamada `CERTIFICATE_PRIVATE_KEY`.
+**b) Agregarla en Codemagic**
+
+1. Codemagic → configuración de tu cuenta (o *Team settings → Team integrations* si usas un equipo) →
+   **Integrations** → **Developer Portal** → **Manage keys** → **Add key**.
+2. **App Store Connect API key name**: `Marea` (exactamente así, con M mayúscula: es el nombre que usa
+   `codemagic.yaml` en la línea `app_store_connect:`).
+3. **Issuer ID** y **Key ID**: los que anotaste.
+4. **API key**: sube el archivo `.p8` → **Save**.
+5. Borra el `.p8` de *Descargas* (ya está en tu gestor de contraseñas).
+
+La lista de llaves de Codemagic puede tener varias; cada app usa solo la que nombra su `codemagic.yaml`.
+
+### 3. Grupo de variables `marea` (llave del certificado de Apple)
+
+Codemagic firma la app con un **certificado de distribución de Apple**. Para Marea se crea una **llave privada
+nueva**, solo de esta app, y con ella Codemagic crea solo su certificado la primera vez que compila.
+
+**a) Crear la llave privada** (en tu computadora; no se instala nada)
+
+- En Windows abre **Símbolo del sistema** (cmd, no PowerShell) y escribe:
+  `ssh-keygen -t rsa -b 2048 -m PEM -f marea_ios_distribution_key -q -N ""`
+  Si prefieres PowerShell, cambia el final por `-N '""'`:
+  `ssh-keygen -t rsa -b 2048 -m PEM -f marea_ios_distribution_key -q -N '""'`
+- En una Mac (Terminal) es el mismo comando de cmd.
+- Se crean dos archivos en la carpeta donde estás: `marea_ios_distribution_key` (la llave privada, la que
+  necesitas) y `marea_ios_distribution_key.pub` (no se usa; puedes borrarlo). **No** los crees dentro de la
+  carpeta del proyecto.
+
+**b) Guardarla en Codemagic**
 
 1. Codemagic → app **Marea** (ferinicf/yoga) → pestaña **Environment variables**.
 2. **Variable name**: `CERTIFICATE_PRIVATE_KEY`.
-3. **Variable value**: el contenido **completo** del archivo de la llave, desde `-----BEGIN RSA PRIVATE KEY-----`
-   hasta `-----END RSA PRIVATE KEY-----`. Usa **la misma llave que pusiste en Bacco**: así Codemagic reutiliza tu
-   certificado actual y no crea otro. Codemagic no deja ver un valor secreto ya guardado, así que necesitas el
-   archivo original (búscalo en tu gestor de contraseñas).
+3. **Variable value**: abre `marea_ios_distribution_key` con el Bloc de notas, copia **todo**, desde
+   `-----BEGIN RSA PRIVATE KEY-----` hasta `-----END RSA PRIVATE KEY-----`, y pégalo aquí.
 4. **Group**: escribe `marea` y créalo.
 5. Marca **Secret** → **Add**.
+6. Guarda el archivo en tu gestor de contraseñas y bórralo de la computadora. Codemagic no deja ver un valor
+   secreto ya guardado.
 
-**¿Ya no tienes ese archivo?** Crea una llave nueva y Codemagic creará un certificado nuevo en tu cuenta de Apple
-la primera vez que compiles:
-
-- En una Mac (Terminal), escribe:
-  `ssh-keygen -t rsa -b 2048 -m PEM -f ios_distribution_private_key -q -N ""`
-- En Windows abre **Símbolo del sistema** (cmd, no PowerShell) y escribe el mismo comando. Si prefieres
-  PowerShell, cambia el final por `-N '""'`:
-  `ssh-keygen -t rsa -b 2048 -m PEM -f ios_distribution_private_key -q -N '""'`
-- Se crea el archivo `ios_distribution_private_key` en la carpeta donde estás. Ábrelo con un editor de texto,
-  copia todo y pégalo como valor de `CERTIFICATE_PRIVATE_KEY`. Guárdalo en tu gestor de contraseñas y bórralo de
-  la computadora. **No** lo guardes dentro de la carpeta del proyecto.
-- Apple permite pocos certificados de distribución por cuenta. Si Codemagic dice que llegaste al límite, revoca
-  en developer.apple.com → **Certificates** uno que **ya no uses** (no el de Bacco si Bacco sigue compilando con él).
+Apple permite pocos certificados de distribución por cuenta. Si la primera compilación dice que llegaste al
+límite, en developer.apple.com → **Certificates** revoca uno que **ya no uses en ninguna app** y vuelve a lanzar
+la compilación. Revocar un certificado no afecta a las apps ya publicadas.
 
 ### 4. Llave de subida de Android (flujo `android-generar-llave`, una sola vez)
 
@@ -133,8 +158,8 @@ Así nunca se repite un número, aunque vuelvas a lanzar la misma compilación.
 |---|---|
 | *No encontré la llave 'marea_upload'* | Revisa el paso 4: el **Reference name** debe ser `marea_upload`. |
 | *La versión "…" no es válida* | Escribe solo números con puntos: `1.0.0`. |
-| iOS: falla al inicio con un error de la integración | El nombre de la integración no coincide con `Bacco-AppStoreConnect` (paso 2). |
-| iOS: falla en "Firma" por la llave del certificado | Falta el grupo `marea` o la variable `CERTIFICATE_PRIVATE_KEY` está incompleta (paso 3). |
+| iOS: falla al inicio con un error de la integración | En Codemagic no hay una llave llamada exactamente `Marea` (paso 2b). |
+| iOS: falla en "Firma" por la llave del certificado | Falta el grupo `marea` o la variable `CERTIFICATE_PRIVATE_KEY` está incompleta (paso 3b). |
 | iOS: compila pero falla al publicar en App Store Connect | La app aún no existe en App Store Connect (paso 5) o hay acuerdos pendientes en App Store Connect → **Negocios**. |
 | iOS: *The train version '1.0.0' is closed* | Esa versión ya se publicó. Vuelve a lanzar con una versión mayor (`1.0.1`). |
 | Android: Play Console dice que el código de versión ya se usó | Vuelve a lanzar `android-play` (el número sube solo). |

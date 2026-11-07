@@ -70,7 +70,7 @@ de prueba y "Eliminar mi cuenta".
   aparecerá con **tu nombre legal**, no "Marea" ([app-store.md](app-store.md#antes-de-empezar)).
 - [ ] **Cuenta de Google Play** (personal, nueva): verificada y con la **prueba cerrada de 12 probadores durante
   14 días** cumplida antes de pedir producción ([google-play.md](google-play.md)).
-- [ ] **Codemagic conectado**: integración de App Store Connect, grupo `marea` y llave de Android
+- [ ] **Codemagic conectado**: llave `Marea` de App Store Connect, grupo `marea` y llave de Android
   ([codemagic.md](codemagic.md)).
 
 ## Orden recomendado
@@ -112,7 +112,7 @@ Todos en **Codemagic** (y una copia en tu gestor de contraseñas). Nada en el re
 
 | Secreto | Dónde en Codemagic | Lo usa |
 |---|---|---|
-| Llave de la API de App Store Connect (integración **`Bacco-AppStoreConnect`**, la misma de Bacco) | Configuración → Integrations → **Developer Portal** | `ios-testflight` |
+| Llave de la API de App Store Connect, solo de Marea (llave **`Marea`**, archivo `.p8`) | Configuración → Integrations → **Developer Portal** → Manage keys | `ios-testflight` |
 | `CERTIFICATE_PRIVATE_KEY` (llave del certificado de distribución de Apple) | App **Marea** → **Environment variables** → grupo **`marea`**, marcada como **Secret** | `ios-testflight` |
 | Llave de subida de Android (`marea-upload.jks`, alias y contraseña) | **codemagic.yaml settings → Code signing identities → Android keystores**, referencia **`marea_upload`** | `android-play` |
 | `GCLOUD_SERVICE_ACCOUNT_CREDENTIALS` *(opcional, para subir solo a Google Play)* | Grupo **`marea`**, **Secret** | `android-play` |
@@ -122,8 +122,8 @@ Todos en **Codemagic** (y una copia en tu gestor de contraseñas). Nada en el re
 | Qué se filtró | Qué hacer |
 |---|---|
 | Llave de subida de Android o su contraseña | Pide el **restablecimiento de la llave de subida** en Play Console ([google-play.md, "Si pierdes la llave"](google-play.md#si-algún-día-pierdes-la-llave-o-se-filtra)). Gracias a *Play App Signing*, la app y tus alumnos no se ven afectados. |
-| Llave de la API de App Store Connect (`.p8`) | App Store Connect → **Usuarios y acceso → Integraciones** → **Revocar** la llave, crear otra y cambiarla en la integración de Codemagic (afecta también a Bacco). |
-| `CERTIFICATE_PRIVATE_KEY` | developer.apple.com → **Certificates** → revoca el certificado de distribución que usa esa llave, crea una llave nueva ([codemagic.md](codemagic.md#3-grupo-de-variables-marea-certificado-de-apple)) y cámbiala en los grupos de Marea y de Bacco. Las apps ya publicadas siguen funcionando. |
+| Llave de la API de App Store Connect (`.p8`) | App Store Connect → **Usuarios y acceso → Integraciones** → **Revocar** la llave `Marea Codemagic`, crear otra ([codemagic.md, paso 2](codemagic.md#2-llave-de-la-api-de-app-store-connect-solo-para-marea-nombre-marea)) y cambiarla en Codemagic (llave `Marea`). |
+| `CERTIFICATE_PRIVATE_KEY` | developer.apple.com → **Certificates** → revoca el certificado de distribución de Marea, crea una llave nueva ([codemagic.md, paso 3](codemagic.md#3-grupo-de-variables-marea-llave-del-certificado-de-apple)) y cámbiala en el grupo `marea`. Las apps ya publicadas siguen funcionando. |
 | JSON de la cuenta de servicio de Google | Google Cloud → **IAM → Cuentas de servicio → Llaves** → borra esa llave y crea otra. |
 
 ## Fuentes (consultadas el 7 de noviembre de 2026)

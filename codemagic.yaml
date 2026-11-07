@@ -10,7 +10,7 @@
 # la tienda, p. ej. 1.0.0). El número de compilación interno lo calcula el flujo solo (ver abajo).
 #
 # Secretos: NUNCA en este archivo, en el repositorio ni en el chat. Viven en Codemagic:
-#   - Integración de App Store Connect "Bacco-AppStoreConnect" (es de tu cuenta de Apple; sirve para todas tus apps).
+#   - Llave de la API de App Store Connect "Marea" (Integrations → Developer Portal), solo para esta app.
 #   - Grupo de variables "marea" con CERTIFICATE_PRIVATE_KEY (llave del certificado de distribución de Apple).
 #   - Llave de Android con nombre de referencia "marea_upload" (Code signing identities → Android keystores).
 #
@@ -156,8 +156,8 @@ workflows:
         description: "Versión que verán tus alumnos (p. ej. 1.0.0). Súbela cuando publiques una versión nueva."
         default: "1.0.0"
     integrations:
-      # Nombre EXACTO de tu integración de App Store Connect en Codemagic (es de tu cuenta de Apple).
-      app_store_connect: Bacco-AppStoreConnect
+      # Nombre EXACTO de la llave de App Store Connect en Codemagic (Integrations → Developer Portal → Manage keys).
+      app_store_connect: Marea
     environment:
       groups:
         - marea # CERTIFICATE_PRIVATE_KEY
